@@ -1,0 +1,5 @@
+macro (append_args NAME)
+    separate_arguments(LIST UNIX_COMMAND "${${NAME}}")
+    list(APPEND LIST "${ARGN}")
+    string(REPLACE ";" " " ${NAME} "${LIST}")
+endmacro ()
