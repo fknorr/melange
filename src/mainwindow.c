@@ -16,6 +16,9 @@ G_DEFINE_TYPE(MelangeMainWindow, melange_main_window, GTK_TYPE_WINDOW)
 static void
 melange_main_window_init(MelangeMainWindow *win) {
     (void) win;
+
+    GdkGeometry hints = { .min_width = 800, .min_height = 600, };
+    gtk_window_set_geometry_hints(GTK_WINDOW(win), NULL, &hints, GDK_HINT_MIN_SIZE);
 }
 
 
