@@ -53,6 +53,21 @@ melange_main_window_web_view_notify_title(GObject *gobject, GParamSpec *pspec,
 }
 
 
+static void
+melange_main_window_web_view_load_changed(WebKitWebView *web_view, WebKitLoadEvent load_event,
+        gpointer user_data) {
+    (void) user_data;
+
+    if (load_event == WEBKIT_LOAD_FINISHED) {
+        char *override_js;
+        if (g_file_get_contents("res/js/whatsapp.js", &override_js, NULL, NULL)) {
+            webkit_web_view_run_javascript(web_view, override_js, NULL, NULL, NULL);
+            g_free(override_js);
+        }
+    }
+}
+
+
 GtkWidget *
 melange_main_window_new(GdkPixbuf *icon, WebKitWebContext *web_context) {
     MelangeMainWindow *win = g_object_new(melange_main_window_get_type(), NULL);
@@ -64,6 +79,8 @@ melange_main_window_new(GdkPixbuf *icon, WebKitWebContext *web_context) {
             G_CALLBACK(melange_main_window_web_view_context_menu), NULL);
     g_signal_connect(win->web_view, "notify::title",
             G_CALLBACK(melange_main_window_web_view_notify_title), win);
+    g_signal_connect(win->web_view, "load-changed",
+            G_CALLBACK(melange_main_window_web_view_load_changed), NULL);
 
     WebKitSettings *sett = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(win->web_view));
     webkit_settings_set_user_agent(sett, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
