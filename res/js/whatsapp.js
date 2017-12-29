@@ -6,6 +6,7 @@ style.appendChild(document.createTextNode(`
         width: 100% !important;
         height: 100% !important;
         top: 0 !important;
+        border-radius: 0 !important;
     }
 `));
-document.body.appendChild(style);
+document.head.appendChild(style);
