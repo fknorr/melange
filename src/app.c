@@ -6,6 +6,7 @@ struct MelangeApp {
     GtkApplication parent_instance;
 
     GtkStatusIcon *status_icon;
+    GtkWidget *status_menu;
     GtkWidget *main_window;
 };
 
@@ -23,6 +24,23 @@ melange_app_status_icon_activate(GtkStatusIcon *status_icon, MelangeApp *app) {
     } else {
         gtk_window_present(GTK_WINDOW(app->main_window));
     }
+}
+
+
+gboolean
+melange_app_status_icon_button_press_event(GtkStatusIcon *status_icon, GdkEvent *event,
+        MelangeApp *app)
+{
+    (void) status_icon;
+
+    if (event->type == GDK_BUTTON_PRESS) {
+        GdkEventButton *button_event = (GdkEventButton*) event;
+        if (button_event->button == GDK_BUTTON_SECONDARY) {
+            gtk_menu_popup_at_pointer(GTK_MENU(app->status_menu), event);
+            return TRUE;
+        }
+    }
+    return FALSE;
 }
 
 
@@ -47,6 +65,8 @@ melange_app_startup(GApplication *g_app) {
     app->status_icon = gtk_status_icon_new_from_pixbuf(icon);
     g_signal_connect(app->status_icon, "activate", G_CALLBACK(melange_app_status_icon_activate),
             app);
+    g_signal_connect(app->status_icon, "button-press-event",
+            G_CALLBACK(melange_app_status_icon_button_press_event), app);
 
     WebKitWebsiteDataManager *data_manager = webkit_website_data_manager_new(
             "base-data-directory", "/tmp/melange/data",
@@ -61,11 +81,18 @@ melange_app_startup(GApplication *g_app) {
     webkit_web_context_initialize_notification_permissions(web_context, allowed_origins, NULL);
 
     app->main_window = melange_main_window_new(icon, web_context);
-    g_signal_connect(app->main_window, "destroy", G_CALLBACK(g_application_quit), app);
+    g_signal_connect_swapped(app->main_window, "destroy", G_CALLBACK(g_application_quit), app);
     g_signal_connect(app->main_window, "delete-event",
             G_CALLBACK(melange_app_main_window_delete_event), NULL);
     gtk_widget_show_all(app->main_window);
     gtk_application_add_window(GTK_APPLICATION(app), GTK_WINDOW(app->main_window));
+
+    app->status_menu = gtk_menu_new();
+    GtkWidget *menu_item = gtk_menu_item_new_with_label("Quit");
+    g_signal_connect_swapped(menu_item, "activate", G_CALLBACK(gtk_widget_destroy),
+            app->main_window);
+    gtk_menu_shell_append(GTK_MENU_SHELL(app->status_menu), menu_item);
+    gtk_widget_show_all(app->status_menu);
 }
 
 

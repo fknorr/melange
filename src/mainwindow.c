@@ -26,7 +26,8 @@ melange_main_window_class_init(MelangeMainWindowClass *cls) {
 
 
 static gboolean
-suppress_context_menu(WebKitWebView *web_view, WebKitContextMenu *context_menu, GdkEvent *event,
+melange_main_window_web_view_context_menu(WebKitWebView *web_view, WebKitContextMenu *context_menu,
+        GdkEvent *event,
         WebKitHitTestResult *hit_test_result, gpointer user_data) {
     (void) web_view;
     (void) context_menu;
@@ -38,13 +39,28 @@ suppress_context_menu(WebKitWebView *web_view, WebKitContextMenu *context_menu, 
 }
 
 
+static void
+melange_main_window_web_view_notify_title(GObject *gobject, GParamSpec *pspec,
+        MelangeMainWindow *win) {
+    (void) gobject;
+    (void) pspec;
+
+    gtk_window_set_title(GTK_WINDOW(win),
+            webkit_web_view_get_title(WEBKIT_WEB_VIEW(win->web_view)));
+}
+
+
 GtkWidget *
 melange_main_window_new(GdkPixbuf *icon, WebKitWebContext *web_context) {
     MelangeMainWindow *win = g_object_new(melange_main_window_get_type(), NULL);
     gtk_window_set_icon(GTK_WINDOW(win), icon);
+    gtk_window_set_title(GTK_WINDOW(win), "Melange");
 
     win->web_view = webkit_web_view_new_with_context(web_context);
-    g_signal_connect(win->web_view, "context-menu", G_CALLBACK(suppress_context_menu), NULL);
+    g_signal_connect(win->web_view, "context-menu",
+            G_CALLBACK(melange_main_window_web_view_context_menu), NULL);
+    g_signal_connect(win->web_view, "notify::title",
+            G_CALLBACK(melange_main_window_web_view_notify_title), win);
 
     WebKitSettings *sett = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(win->web_view));
     webkit_settings_set_user_agent(sett, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
