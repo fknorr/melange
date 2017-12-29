@@ -80,7 +80,9 @@ melange_app_startup(GApplication *g_app) {
     GList *allowed_origins = g_list_append(NULL, origin);
     webkit_web_context_initialize_notification_permissions(web_context, allowed_origins, NULL);
 
-    app->main_window = melange_main_window_new(icon, web_context);
+    app->main_window = melange_main_window_new(web_context);
+    gtk_window_set_icon(GTK_WINDOW(app->main_window), icon);
+    gtk_window_set_title(GTK_WINDOW(app->main_window), "Melange");
     g_signal_connect_swapped(app->main_window, "destroy", G_CALLBACK(g_application_quit), app);
     g_signal_connect(app->main_window, "delete-event",
             G_CALLBACK(melange_app_main_window_delete_event), NULL);
