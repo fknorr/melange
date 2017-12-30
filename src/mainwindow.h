@@ -1,8 +1,7 @@
 #ifndef MELANGE_MAINWINDOW_H
 #define MELANGE_MAINWINDOW_H
 
-#include <gtk/gtk.h>
-#include <webkit2/webkit2.h>
+#include "app.h"
 
 
 typedef struct MelangeMainWindow MelangeMainWindow;
@@ -12,9 +11,9 @@ typedef struct MelangeMainWindow MelangeMainWindow;
         (G_TYPE_CHECK_INSTANCE_CAST((obj), MELANGE_TYPE_MAIN_WINDOW, MelangeMainWindow))
 
 
-GtkWidget *melange_main_window_new(WebKitWebContext *web_context);
+GtkWidget *melange_main_window_new(MelangeApp *app);
 
-GType melange_app_get_type(void);
+GType melange_main_window_get_type(void);
 
 
 #endif // MELANGE_MAINWINDOW_H

@@ -1,29 +1,32 @@
 #include "mainwindow.h"
+#include "app.h"
 #include "util.h"
 
 
 struct MelangeMainWindow
 {
-    GtkWindow parent_instance;
+    GtkApplicationWindow parent_instance;
 
-    WebKitWebContext *web_context;
+    MelangeApp *app;
+
     GtkWidget *web_view;
     GtkWidget *sidebar_revealer;
     GtkWidget *view_stack;
     GtkWidget *switcher_box;
+    GtkWidget *menu_box;
 
     guint sidebar_timeout;
 };
 
-typedef GtkWindowClass MelangeMainWindowClass;
+typedef GtkApplicationWindowClass MelangeMainWindowClass;
 
 enum {
-    MELANGE_MAIN_WINDOW_PROP_WEB_CONTEXT = 1,
+    MELANGE_MAIN_WINDOW_PROP_APP = 1,
     MELANGE_MAIN_WINDOW_N_PROPS
 };
 
 
-G_DEFINE_TYPE(MelangeMainWindow, melange_main_window, GTK_TYPE_WINDOW)
+G_DEFINE_TYPE(MelangeMainWindow, melange_main_window, GTK_TYPE_APPLICATION_WINDOW)
 
 
 static void
@@ -32,8 +35,8 @@ melange_main_window_set_property(GObject *object, guint property_id, const GValu
 {
     MelangeMainWindow *win = MELANGE_MAIN_WINDOW(object);
     switch (property_id) {
-        case MELANGE_MAIN_WINDOW_PROP_WEB_CONTEXT:
-            win->web_context = g_value_get_pointer(value);
+        case MELANGE_MAIN_WINDOW_PROP_APP:
+            win->app = MELANGE_APP(g_value_get_pointer(value));
             break;
 
         default:
@@ -99,11 +102,17 @@ melange_main_window_hide_sidebar_callback(MelangeMainWindow *win) {
 
 
 static void
-melange_main_window_hide_sidebar_after_timeout(MelangeMainWindow *win, guint timeout) {
+melange_main_window_cancel_sidebar_timeout(MelangeMainWindow *win) {
     if (win->sidebar_timeout) {
         g_source_remove(win->sidebar_timeout);
         win->sidebar_timeout = 0;
     }
+}
+
+
+static void
+melange_main_window_hide_sidebar_after_timeout(MelangeMainWindow *win, guint timeout) {
+    melange_main_window_cancel_sidebar_timeout(win);
     if (gtk_revealer_get_child_revealed(GTK_REVEALER(win->sidebar_revealer))) {
         win->sidebar_timeout = g_timeout_add(timeout,
                 (GSourceFunc) melange_main_window_hide_sidebar_callback, win);
@@ -118,6 +127,7 @@ melange_main_window_sidebar_enter_notify_event(GtkWidget *widget, GdkEvent *even
     (void) widget;
     (void) event;
 
+    melange_main_window_cancel_sidebar_timeout(win);
     melange_main_window_set_sidebar_visible(win, TRUE);
     return TRUE;
 }
@@ -151,10 +161,21 @@ melange_main_window_init(MelangeMainWindow *win) {
 }
 
 
+static GtkWidget *
+melange_main_window_create_switcher_button(const char *icon) {
+    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(icon, 32, 32, NULL);
+    GtkWidget *image = gtk_image_new_from_pixbuf(pixbuf);
+    GtkWidget *switcher = gtk_button_new();
+    gtk_button_set_relief(GTK_BUTTON(switcher), GTK_RELIEF_NONE);
+    gtk_button_set_image(GTK_BUTTON(switcher), image);
+    return switcher;
+}
+
+
 static void
 melange_main_window_constructed(GObject *obj) {
     MelangeMainWindow *win = MELANGE_MAIN_WINDOW(obj);
-    g_return_if_fail(win->web_context);
+    g_return_if_fail(win->app);
 
     GtkBuilder *builder = gtk_builder_new_from_file("res/ui/mainwindow.glade");
     gtk_builder_connect_signals(builder, win);
@@ -164,11 +185,20 @@ melange_main_window_constructed(GObject *obj) {
 
     win->sidebar_revealer = GTK_WIDGET(gtk_builder_get_object(builder, "sidebar-revealer"));
     win->view_stack = GTK_WIDGET(gtk_builder_get_object(builder, "view-stack"));
+    win->menu_box = GTK_WIDGET(gtk_builder_get_object(builder, "menu-box"));
     win->switcher_box = GTK_WIDGET(gtk_builder_get_object(builder, "switcher-box"));
 
     g_object_unref(builder);
 
-    win->web_view = webkit_web_view_new_with_context(win->web_context);
+    gtk_container_add(GTK_CONTAINER(win->switcher_box),
+            melange_main_window_create_switcher_button("res/icons/melange.svg"));
+    gtk_container_add(GTK_CONTAINER(win->switcher_box),
+            melange_main_window_create_switcher_button("res/icons/add.svg"));
+    gtk_container_add(GTK_CONTAINER(win->menu_box),
+            melange_main_window_create_switcher_button("res/icons/settings.svg"));
+
+    WebKitWebContext *web_context = melange_app_get_web_context(win->app);
+    win->web_view = webkit_web_view_new_with_context(web_context);
     g_signal_connect(win->web_view, "context-menu",
             G_CALLBACK(melange_main_window_web_view_context_menu), NULL);
     g_signal_connect(win->web_view, "notify::title",
@@ -195,17 +225,20 @@ melange_main_window_class_init(MelangeMainWindowClass *cls) {
     object_class->set_property = melange_main_window_set_property;
     object_class->constructed = melange_main_window_constructed;
 
-    GParamSpec *web_context_spec = g_param_spec_pointer("web-context", "web-context",
-            "WebKitWebContext to use", G_PARAM_CONSTRUCT_ONLY | G_PARAM_WRITABLE
-                    | G_PARAM_STATIC_NAME | G_PARAM_STATIC_NICK | G_PARAM_STATIC_BLURB);
-    g_object_class_install_property(G_OBJECT_CLASS(cls), MELANGE_MAIN_WINDOW_PROP_WEB_CONTEXT,
-            web_context_spec);
+    GParamSpec *app_property_spec = g_param_spec_pointer("app", "app-context", "app",
+            G_PARAM_CONSTRUCT_ONLY | G_PARAM_WRITABLE | G_PARAM_STATIC_NAME | G_PARAM_STATIC_NICK
+                    | G_PARAM_STATIC_BLURB);
+    g_object_class_install_property(G_OBJECT_CLASS(cls), MELANGE_MAIN_WINDOW_PROP_APP,
+            app_property_spec);
 }
 
 
 GtkWidget *
-melange_main_window_new(WebKitWebContext *web_context) {
+melange_main_window_new(MelangeApp *app) {
+    g_return_val_if_fail(MELANGE_IS_APP(app), NULL);
+
     return g_object_new(melange_main_window_get_type(),
-            "web-context", web_context,
+            "application", app,
+            "app", app,
             NULL);
 }

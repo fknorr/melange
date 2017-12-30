@@ -2,6 +2,7 @@
 #define MELANGE_APP_H
 
 #include <gtk/gtk.h>
+#include <webkit2/webkit2.h>
 
 
 typedef struct MelangeApp MelangeApp;
@@ -9,9 +10,12 @@ typedef struct MelangeApp MelangeApp;
 
 #define MELANGE_TYPE_APP (melange_app_get_type())
 #define MELANGE_APP(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), MELANGE_TYPE_APP, MelangeApp))
+#define MELANGE_IS_APP(inst) (G_TYPE_CHECK_INSTANCE_TYPE ((inst), MELANGE_TYPE_APP))
 
 
 GApplication *melange_app_new(void);
+
+WebKitWebContext *melange_app_get_web_context(MelangeApp *app);
 
 GType melange_app_get_type(void);
 

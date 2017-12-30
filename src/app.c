@@ -8,6 +8,8 @@ struct MelangeApp {
     GtkStatusIcon *status_icon;
     GtkWidget *status_menu;
     GtkWidget *main_window;
+
+    WebKitWebContext *web_context;
 };
 
 typedef GtkApplicationClass MelangeAppClass;
@@ -73,14 +75,14 @@ melange_app_startup(GApplication *g_app) {
             "base-cache-directory", "/tmp/melange/cache",
             NULL);
 
-    WebKitWebContext *web_context = webkit_web_context_new_with_website_data_manager(data_manager);
-    webkit_web_context_set_cache_model(web_context, WEBKIT_CACHE_MODEL_WEB_BROWSER);
+    app->web_context = webkit_web_context_new_with_website_data_manager(data_manager);
+    webkit_web_context_set_cache_model(app->web_context, WEBKIT_CACHE_MODEL_WEB_BROWSER);
 
     WebKitSecurityOrigin *origin = webkit_security_origin_new_for_uri("https://web.whatsapp.com");
     GList *allowed_origins = g_list_append(NULL, origin);
-    webkit_web_context_initialize_notification_permissions(web_context, allowed_origins, NULL);
+    webkit_web_context_initialize_notification_permissions(app->web_context, allowed_origins, NULL);
 
-    app->main_window = melange_main_window_new(web_context);
+    app->main_window = melange_main_window_new(app);
     gtk_window_set_icon(GTK_WINDOW(app->main_window), icon);
     gtk_window_set_title(GTK_WINDOW(app->main_window), "Melange");
     g_signal_connect_swapped(app->main_window, "destroy", G_CALLBACK(g_application_quit), app);
@@ -140,4 +142,10 @@ melange_app_new(void) {
             "application-id", "de.inforge.melange",
             "register-session", TRUE,
             NULL);
+}
+
+
+WebKitWebContext *
+melange_app_get_web_context(MelangeApp *app) {
+    return app->web_context;
 }
