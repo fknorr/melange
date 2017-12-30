@@ -84,7 +84,7 @@
               <object class="GtkRevealer" id="sidebar-revealer">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="transition_type">slide-right</property>
+                <property name="transition_type">none</property>
                 <property name="transition_duration">200</property>
                 <property name="reveal_child">True</property>
                 <child>
@@ -176,52 +176,75 @@
       </packing>
     </child>
   </object>
-  <object class="GtkBox" id="settings-view">
+  <object class="GtkGrid" id="settings-view">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="halign">center</property>
     <property name="valign">center</property>
-    <property name="orientation">vertical</property>
+    <property name="row_spacing">5</property>
+    <property name="column_spacing">15</property>
     <child>
-      <object class="GtkCheckButton">
-        <property name="label" translatable="yes">First Option</property>
+      <object class="GtkLabel" id="dark-theme-label">
         <property name="visible">True</property>
-        <property name="can_focus">True</property>
-        <property name="receives_default">False</property>
-        <property name="draw_indicator">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">Dark Theme</property>
       </object>
       <packing>
-        <property name="expand">False</property>
-        <property name="fill">True</property>
-        <property name="position">0</property>
+        <property name="left_attach">0</property>
+        <property name="top_attach">0</property>
       </packing>
     </child>
     <child>
-      <object class="GtkCheckButton">
-        <property name="label" translatable="yes">Second Option</property>
+      <object class="GtkLabel">
         <property name="visible">True</property>
-        <property name="can_focus">True</property>
-        <property name="receives_default">False</property>
-        <property name="draw_indicator">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">label</property>
       </object>
       <packing>
-        <property name="expand">False</property>
-        <property name="fill">True</property>
-        <property name="position">1</property>
+        <property name="left_attach">0</property>
+        <property name="top_attach">1</property>
       </packing>
     </child>
     <child>
-      <object class="GtkCheckButton">
-        <property name="label" translatable="yes">Third Option</property>
+      <object class="GtkLabel">
         <property name="visible">True</property>
-        <property name="can_focus">True</property>
-        <property name="receives_default">False</property>
-        <property name="draw_indicator">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">label</property>
       </object>
       <packing>
-        <property name="expand">False</property>
-        <property name="fill">True</property>
-        <property name="position">2</property>
+        <property name="left_attach">0</property>
+        <property name="top_attach">2</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkSwitch" id="dark-theme-setting">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <signal name="state-set" handler="melange_main_window_dark_theme_setting_state_set" swapped="no"/>
+      </object>
+      <packing>
+        <property name="left_attach">1</property>
+        <property name="top_attach">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkSwitch">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+      </object>
+      <packing>
+        <property name="left_attach">1</property>
+        <property name="top_attach">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkSwitch">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+      </object>
+      <packing>
+        <property name="left_attach">1</property>
+        <property name="top_attach">2</property>
       </packing>
     </child>
   </object>

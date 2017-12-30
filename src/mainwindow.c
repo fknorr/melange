@@ -149,6 +149,16 @@ melange_main_window_sidebar_leave_notify_event(GtkWidget *widget, GdkEvent *even
 }
 
 
+GLADE_EVENT_HANDLER gboolean
+melange_main_window_dark_theme_setting_state_set(GtkSwitch *widget, gboolean state,
+        MelangeMainWindow *win)
+{
+    (void) widget;
+    g_object_set(win->app, "dark-theme", state, NULL);
+    return FALSE;
+}
+
+
 static void
 melange_main_window_realize(GtkWidget *widget) {
     GTK_WIDGET_CLASS(melange_main_window_parent_class)->realize(widget);
@@ -238,6 +248,20 @@ melange_main_window_constructed(GObject *obj) {
             melange_main_window_create_switcher_button("res/icons/add.svg", win->add_view));
     gtk_container_add(GTK_CONTAINER(win->menu_box), melange_main_window_create_switcher_button(
             "res/icons/settings.svg", win->settings_view));
+
+    gtk_application_window_set_show_menubar(GTK_APPLICATION_WINDOW(win), FALSE);
+    if (gtk_application_prefers_app_menu(GTK_APPLICATION(win->app))) {
+        GtkWidget *header_bar = gtk_header_bar_new();
+        gtk_header_bar_set_show_close_button(GTK_HEADER_BAR(header_bar), TRUE);
+        gtk_window_set_titlebar(GTK_WINDOW(win), header_bar);
+    }
+}
+
+
+static void
+melange_main_window_finalize(GObject *obj) {
+    MelangeMainWindow *win = MELANGE_MAIN_WINDOW(obj);
+    g_signal_handlers_disconnect_by_data(win->app, win);
 }
 
 
@@ -249,6 +273,7 @@ melange_main_window_class_init(MelangeMainWindowClass *cls) {
     GObjectClass *object_class = G_OBJECT_CLASS(cls);
     object_class->set_property = melange_main_window_set_property;
     object_class->constructed = melange_main_window_constructed;
+    object_class->finalize = melange_main_window_finalize;
 
     GParamSpec *app_property_spec = g_param_spec_pointer("app", "app-context", "app",
             G_PARAM_CONSTRUCT_ONLY | G_PARAM_WRITABLE | G_PARAM_STATIC_NAME | G_PARAM_STATIC_NICK
