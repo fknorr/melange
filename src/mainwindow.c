@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "util.h"
 
 
 struct MelangeMainWindow
@@ -7,6 +8,11 @@ struct MelangeMainWindow
 
     WebKitWebContext *web_context;
     GtkWidget *web_view;
+    GtkWidget *sidebar_revealer;
+    GtkWidget *view_stack;
+    GtkWidget *switcher_box;
+
+    guint sidebar_timeout;
 };
 
 typedef GtkWindowClass MelangeMainWindowClass;
@@ -77,8 +83,71 @@ melange_main_window_web_view_load_changed(WebKitWebView *web_view, WebKitLoadEve
 
 
 static void
+melange_main_window_set_sidebar_visible(MelangeMainWindow *win, gboolean visible) {
+    if (gtk_revealer_get_child_revealed(GTK_REVEALER(win->sidebar_revealer)) != visible) {
+        gtk_revealer_set_reveal_child(GTK_REVEALER(win->sidebar_revealer), visible);
+    }
+}
+
+
+static gboolean
+melange_main_window_hide_sidebar_callback(MelangeMainWindow *win) {
+    melange_main_window_set_sidebar_visible(win, FALSE);
+    win->sidebar_timeout = 0;
+    return FALSE;
+}
+
+
+static void
+melange_main_window_hide_sidebar_after_timeout(MelangeMainWindow *win, guint timeout) {
+    if (win->sidebar_timeout) {
+        g_source_remove(win->sidebar_timeout);
+        win->sidebar_timeout = 0;
+    }
+    if (gtk_revealer_get_child_revealed(GTK_REVEALER(win->sidebar_revealer))) {
+        win->sidebar_timeout = g_timeout_add(timeout,
+                (GSourceFunc) melange_main_window_hide_sidebar_callback, win);
+    }
+}
+
+
+GLADE_EVENT_HANDLER gboolean
+melange_main_window_sidebar_enter_notify_event(GtkWidget *widget, GdkEvent *event,
+        MelangeMainWindow *win)
+{
+    (void) widget;
+    (void) event;
+
+    melange_main_window_set_sidebar_visible(win, TRUE);
+    return TRUE;
+}
+
+
+GLADE_EVENT_HANDLER gboolean
+melange_main_window_sidebar_leave_notify_event(GtkWidget *widget, GdkEvent *event,
+        MelangeMainWindow *win)
+{
+    (void) widget;
+    (void) event;
+
+    melange_main_window_hide_sidebar_after_timeout(win, 1000);
+    return TRUE;
+}
+
+
+static void
+melange_main_window_realize(GtkWidget *widget) {
+    GTK_WIDGET_CLASS(melange_main_window_parent_class)->realize(widget);
+    melange_main_window_hide_sidebar_after_timeout(MELANGE_MAIN_WINDOW(widget), 3000);
+}
+
+
+static void
 melange_main_window_init(MelangeMainWindow *win) {
-    (void) win;
+    win->sidebar_timeout = 0;
+
+    GdkGeometry hints = { .min_width = 800, .min_height = 600 };
+    gtk_window_set_geometry_hints(GTK_WINDOW(win), NULL, &hints, GDK_HINT_MIN_SIZE);
 }
 
 
@@ -86,6 +155,18 @@ static void
 melange_main_window_constructed(GObject *obj) {
     MelangeMainWindow *win = MELANGE_MAIN_WINDOW(obj);
     g_return_if_fail(win->web_context);
+
+    GtkBuilder *builder = gtk_builder_new_from_file("res/ui/mainwindow.glade");
+    gtk_builder_connect_signals(builder, win);
+
+    GtkWidget *layout = GTK_WIDGET(gtk_builder_get_object(builder, "layout"));
+    gtk_container_add(GTK_CONTAINER(win), layout);
+
+    win->sidebar_revealer = GTK_WIDGET(gtk_builder_get_object(builder, "sidebar-revealer"));
+    win->view_stack = GTK_WIDGET(gtk_builder_get_object(builder, "view-stack"));
+    win->switcher_box = GTK_WIDGET(gtk_builder_get_object(builder, "switcher-box"));
+
+    g_object_unref(builder);
 
     win->web_view = webkit_web_view_new_with_context(win->web_context);
     g_signal_connect(win->web_view, "context-menu",
@@ -101,14 +182,15 @@ melange_main_window_constructed(GObject *obj) {
 
     webkit_web_view_load_uri(WEBKIT_WEB_VIEW(win->web_view), "https://web.whatsapp.com");
 
-    GdkGeometry hints = { .min_width = 800, .min_height = 600, };
-    gtk_window_set_geometry_hints(GTK_WINDOW(win), NULL, &hints, GDK_HINT_MIN_SIZE);
-    gtk_container_add(GTK_CONTAINER(win), win->web_view);
+    gtk_container_add(GTK_CONTAINER(win->view_stack), win->web_view);
 }
 
 
 static void
 melange_main_window_class_init(MelangeMainWindowClass *cls) {
+    GtkWidgetClass *widget_class = GTK_WIDGET_CLASS(cls);
+    widget_class->realize = melange_main_window_realize;
+
     GObjectClass *object_class = G_OBJECT_CLASS(cls);
     object_class->set_property = melange_main_window_set_property;
     object_class->constructed = melange_main_window_constructed;

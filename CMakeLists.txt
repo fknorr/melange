@@ -40,10 +40,15 @@ link_directories(
 
 add_executable(melange
     src/main.c
-        src/app.c src/app.h src/mainwindow.c src/mainwindow.h)
+    src/app.c src/app.h
+    src/mainwindow.c src/mainwindow.h
+        src/util.h)
 
 target_link_libraries(melange
     ${GTK3_LIBRARIES}
     ${WEBKIT2GTK_LIBRARIES}
 )
 
+set_target_properties(melange PROPERTIES LINK_FLAGS
+    -rdynamic
+)
