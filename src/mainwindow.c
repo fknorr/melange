@@ -161,13 +161,22 @@ melange_main_window_init(MelangeMainWindow *win) {
 }
 
 
+static void
+melange_main_window_switch_to_view(GtkButton *button, GtkWidget *switch_to) {
+    GtkStack *stack = GTK_STACK(gtk_widget_get_parent(switch_to));
+    gtk_stack_set_visible_child(stack, switch_to);
+}
+
+
 static GtkWidget *
-melange_main_window_create_switcher_button(const char *icon) {
+melange_main_window_create_switcher_button(const char *icon, GtkWidget *switch_to) {
     GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(icon, 32, 32, NULL);
     GtkWidget *image = gtk_image_new_from_pixbuf(pixbuf);
     GtkWidget *switcher = gtk_button_new();
     gtk_button_set_relief(GTK_BUTTON(switcher), GTK_RELIEF_NONE);
     gtk_button_set_image(GTK_BUTTON(switcher), image);
+    g_signal_connect(switcher, "clicked", G_CALLBACK(melange_main_window_switch_to_view),
+            switch_to);
     return switcher;
 }
 
@@ -190,13 +199,6 @@ melange_main_window_constructed(GObject *obj) {
 
     g_object_unref(builder);
 
-    gtk_container_add(GTK_CONTAINER(win->switcher_box),
-            melange_main_window_create_switcher_button("res/icons/melange.svg"));
-    gtk_container_add(GTK_CONTAINER(win->switcher_box),
-            melange_main_window_create_switcher_button("res/icons/add.svg"));
-    gtk_container_add(GTK_CONTAINER(win->menu_box),
-            melange_main_window_create_switcher_button("res/icons/settings.svg"));
-
     WebKitWebContext *web_context = melange_app_get_web_context(win->app);
     win->web_view = webkit_web_view_new_with_context(web_context);
     g_signal_connect(win->web_view, "context-menu",
@@ -211,8 +213,20 @@ melange_main_window_constructed(GObject *obj) {
             "(KHTML, like Gecko) Chrome/63.0.3239.108 Safari/537.36");
 
     webkit_web_view_load_uri(WEBKIT_WEB_VIEW(win->web_view), "https://web.whatsapp.com");
-
     gtk_container_add(GTK_CONTAINER(win->view_stack), win->web_view);
+
+    gtk_container_add(GTK_CONTAINER(win->switcher_box),
+            melange_main_window_create_switcher_button("res/icons/melange.svg", win->web_view));
+
+    GtkWidget *add_view = gtk_label_new("Select a messenger");
+    gtk_container_add(GTK_CONTAINER(win->view_stack), add_view);
+    gtk_container_add(GTK_CONTAINER(win->switcher_box),
+            melange_main_window_create_switcher_button("res/icons/add.svg", add_view));
+
+    GtkWidget *settings_view = gtk_label_new("Settings");
+    gtk_container_add(GTK_CONTAINER(win->view_stack), settings_view);
+    gtk_container_add(GTK_CONTAINER(win->menu_box),
+            melange_main_window_create_switcher_button("res/icons/settings.svg", settings_view));
 }
 
 
