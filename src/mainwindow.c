@@ -95,7 +95,9 @@ melange_main_window_set_sidebar_visible(MelangeMainWindow *win, gboolean visible
 
 static gboolean
 melange_main_window_hide_sidebar_callback(MelangeMainWindow *win) {
-    melange_main_window_set_sidebar_visible(win, FALSE);
+    if (WEBKIT_IS_WEB_VIEW(gtk_stack_get_visible_child(GTK_STACK(win->view_stack)))) {
+        melange_main_window_set_sidebar_visible(win, FALSE);
+    }
     win->sidebar_timeout = 0;
     return FALSE;
 }
