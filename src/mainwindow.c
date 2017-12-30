@@ -10,6 +10,8 @@ struct MelangeMainWindow
     MelangeApp *app;
 
     GtkWidget *web_view;
+    GtkWidget *add_view;
+    GtkWidget *settings_view;
     GtkWidget *sidebar_revealer;
     GtkWidget *view_stack;
     GtkWidget *switcher_box;
@@ -150,7 +152,10 @@ melange_main_window_sidebar_leave_notify_event(GtkWidget *widget, GdkEvent *even
 static void
 melange_main_window_realize(GtkWidget *widget) {
     GTK_WIDGET_CLASS(melange_main_window_parent_class)->realize(widget);
-    melange_main_window_hide_sidebar_after_timeout(MELANGE_MAIN_WINDOW(widget), 3000);
+
+    MelangeMainWindow *win = MELANGE_MAIN_WINDOW(widget);
+    melange_main_window_hide_sidebar_after_timeout(win, 3000);
+    gtk_stack_set_visible_child(GTK_STACK(win->view_stack), win->web_view);
 }
 
 
@@ -199,6 +204,16 @@ melange_main_window_constructed(GObject *obj) {
     win->menu_box = GTK_WIDGET(gtk_builder_get_object(builder, "menu-box"));
     win->switcher_box = GTK_WIDGET(gtk_builder_get_object(builder, "switcher-box"));
 
+    GtkImage *sidebar_handle = GTK_IMAGE(gtk_builder_get_object(builder, "sidebar-handle"));
+    gtk_image_set_from_pixbuf(sidebar_handle,
+            gdk_pixbuf_new_from_file_at_size("res/icons/vdots.svg", 4, -1, NULL));
+
+    win->add_view = GTK_WIDGET(gtk_builder_get_object(builder, "add-view"));
+    gtk_container_add(GTK_CONTAINER(win->view_stack), win->add_view);
+
+    win->settings_view = GTK_WIDGET(gtk_builder_get_object(builder, "settings-view"));
+    gtk_container_add(GTK_CONTAINER(win->view_stack), win->settings_view);
+
     g_object_unref(builder);
 
     WebKitWebContext *web_context = melange_app_get_web_context(win->app);
@@ -219,16 +234,10 @@ melange_main_window_constructed(GObject *obj) {
 
     gtk_container_add(GTK_CONTAINER(win->switcher_box),
             melange_main_window_create_switcher_button("res/icons/melange.svg", win->web_view));
-
-    GtkWidget *add_view = gtk_label_new("Select a messenger");
-    gtk_container_add(GTK_CONTAINER(win->view_stack), add_view);
     gtk_container_add(GTK_CONTAINER(win->switcher_box),
-            melange_main_window_create_switcher_button("res/icons/add.svg", add_view));
-
-    GtkWidget *settings_view = gtk_label_new("Settings");
-    gtk_container_add(GTK_CONTAINER(win->view_stack), settings_view);
-    gtk_container_add(GTK_CONTAINER(win->menu_box),
-            melange_main_window_create_switcher_button("res/icons/settings.svg", settings_view));
+            melange_main_window_create_switcher_button("res/icons/add.svg", win->add_view));
+    gtk_container_add(GTK_CONTAINER(win->menu_box), melange_main_window_create_switcher_button(
+            "res/icons/settings.svg", win->settings_view));
 }
 
 
