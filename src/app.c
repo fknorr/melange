@@ -70,23 +70,27 @@ melange_app_set_property(GObject *object, guint property_id, const GValue *value
     switch (property_id) {
         case MELANGE_APP_PROP_DARK_THEME:
             app->dark_theme = g_value_get_boolean(value);
+            g_object_set(gtk_settings_get_default(), "gtk-application-prefer-dark-theme",
+                    app->dark_theme, NULL);
             break;
 
         case MELANGE_APP_PROP_AUTO_HIDE_SIDEBAR:
             app->auto_hide_sidebar = g_value_get_boolean(value);
             break;
 
-        case MELANGE_APP_PROP_CLIENT_SIDE_DECORATIONS:
-            if (!g_str_equal(value, "off")) {
+        case MELANGE_APP_PROP_CLIENT_SIDE_DECORATIONS: {
+            const char *str_value = g_value_get_string(value);
+            if (g_str_equal(str_value, "off")) {
                 app->client_side_decorations = MELANGE_CSD_OFF;
-            } else if (!g_str_equal(value, "on")) {
+            } else if (g_str_equal(str_value, "on")) {
                 app->client_side_decorations = MELANGE_CSD_ON;
-            } else if (!g_str_equal(value, "auto")) {
+            } else if (g_str_equal(str_value, "auto")) {
                 app->client_side_decorations = MELANGE_CSD_AUTO;
             } else {
-                g_warning("Invalid value for property client-side-decorations: %s", value);
+                g_warning("Invalid value for property client-side-decorations: %s", str_value);
             }
             break;
+        }
 
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -139,17 +143,6 @@ melange_app_main_window_delete_event(GtkWidget *widget, GdkEvent *event, gpointe
     gtk_widget_hide(widget);
 
     return TRUE; // inhibit destruction of window
-}
-
-
-static void
-melange_app_notify_dark_theme(GObject *gobject, GParamSpec *pspec, gpointer user_data) {
-    (void) pspec;
-    (void) user_data;
-
-    gboolean state;
-    g_object_get(gobject, "dark-theme", &state, NULL);
-    g_object_set(gtk_settings_get_default(), "gtk-application-prefer-dark-theme", state, NULL);
 }
 
 
@@ -228,8 +221,6 @@ melange_app_finalize(GObject *app) {
 static void
 melange_app_init(MelangeApp *app) {
     (void) app;
-
-    g_signal_connect(app, "notify::dark-theme", G_CALLBACK(melange_app_notify_dark_theme), app);
 }
 
 
@@ -245,7 +236,7 @@ melange_app_class_init(MelangeAppClass *cls) {
     object_class->get_property = melange_app_get_property;
     object_class->set_property = melange_app_set_property;
 
-    GParamSpec *property_specs[MELANGE_APP_N_PROPS] = {};
+    GParamSpec *property_specs[MELANGE_APP_N_PROPS] = { NULL };
     GParamFlags property_flags =  G_PARAM_READWRITE | G_PARAM_STATIC_NAME | G_PARAM_STATIC_NICK
                     | G_PARAM_STATIC_BLURB;
 

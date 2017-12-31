@@ -67,6 +67,115 @@
       <placeholder/>
     </child>
   </object>
+  <object class="GtkListStore" id="client-side-decorations-list-store">
+    <columns>
+      <!-- column-name enum -->
+      <column type="gchararray"/>
+      <!-- column-name text -->
+      <column type="gchararray"/>
+    </columns>
+    <data>
+      <row>
+        <col id="0" translatable="yes">off</col>
+        <col id="1" translatable="yes">Off</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">on</col>
+        <col id="1" translatable="yes">On</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">auto</col>
+        <col id="1" translatable="yes">Automatic</col>
+      </row>
+    </data>
+  </object>
+  <object class="GtkGrid" id="settings-view">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="halign">center</property>
+    <property name="valign">center</property>
+    <property name="row_spacing">5</property>
+    <property name="column_spacing">15</property>
+    <child>
+      <object class="GtkLabel" id="dark-theme-label">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="halign">start</property>
+        <property name="label" translatable="yes">Dark Theme</property>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkLabel" id="auto-hide-sidebar-label">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="halign">start</property>
+        <property name="label" translatable="yes">Auto hide sidebar</property>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkLabel" id="client-side-decorations-label">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">Client side decorations</property>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">2</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkSwitch" id="dark-theme-setting">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="halign">start</property>
+        <signal name="state-set" handler="melange_main_window_dark_theme_setting_state_set" swapped="no"/>
+      </object>
+      <packing>
+        <property name="left_attach">1</property>
+        <property name="top_attach">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkSwitch" id="auto-hide-sidebar-setting">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="halign">start</property>
+        <signal name="state-set" handler="melange_main_window_auto_hide_sidebar_setting_state_set" swapped="no"/>
+      </object>
+      <packing>
+        <property name="left_attach">1</property>
+        <property name="top_attach">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkComboBox" id="client-side-decorations-setting">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="halign">start</property>
+        <property name="model">client-side-decorations-list-store</property>
+        <property name="id_column">0</property>
+        <signal name="changed" handler="melange_main_window_client_side_decorations_setting_changed" swapped="no"/>
+        <child>
+          <object class="GtkCellRendererText" id="name"/>
+          <attributes>
+            <attribute name="text">1</attribute>
+          </attributes>
+        </child>
+      </object>
+      <packing>
+        <property name="left_attach">1</property>
+        <property name="top_attach">2</property>
+      </packing>
+    </child>
+  </object>
   <object class="GtkBox" id="layout">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -173,78 +282,6 @@
         <property name="expand">True</property>
         <property name="fill">True</property>
         <property name="position">2</property>
-      </packing>
-    </child>
-  </object>
-  <object class="GtkGrid" id="settings-view">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="halign">center</property>
-    <property name="valign">center</property>
-    <property name="row_spacing">5</property>
-    <property name="column_spacing">15</property>
-    <child>
-      <object class="GtkLabel" id="dark-theme-label">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="label" translatable="yes">Dark Theme</property>
-      </object>
-      <packing>
-        <property name="left_attach">0</property>
-        <property name="top_attach">0</property>
-      </packing>
-    </child>
-    <child>
-      <object class="GtkLabel">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="label" translatable="yes">label</property>
-      </object>
-      <packing>
-        <property name="left_attach">0</property>
-        <property name="top_attach">1</property>
-      </packing>
-    </child>
-    <child>
-      <object class="GtkLabel">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="label" translatable="yes">label</property>
-      </object>
-      <packing>
-        <property name="left_attach">0</property>
-        <property name="top_attach">2</property>
-      </packing>
-    </child>
-    <child>
-      <object class="GtkSwitch" id="dark-theme-setting">
-        <property name="visible">True</property>
-        <property name="can_focus">True</property>
-        <signal name="state-set" handler="melange_main_window_dark_theme_setting_state_set" swapped="no"/>
-      </object>
-      <packing>
-        <property name="left_attach">1</property>
-        <property name="top_attach">0</property>
-      </packing>
-    </child>
-    <child>
-      <object class="GtkSwitch">
-        <property name="visible">True</property>
-        <property name="can_focus">True</property>
-      </object>
-      <packing>
-        <property name="left_attach">1</property>
-        <property name="top_attach">1</property>
-      </packing>
-    </child>
-    <child>
-      <object class="GtkSwitch">
-        <property name="visible">True</property>
-        <property name="can_focus">True</property>
-      </object>
-      <packing>
-        <property name="left_attach">1</property>
-        <property name="top_attach">2</property>
       </packing>
     </child>
   </object>

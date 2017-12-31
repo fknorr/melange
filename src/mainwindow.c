@@ -13,6 +13,7 @@ struct MelangeMainWindow
     GtkWidget *add_view;
     GtkWidget *settings_view;
     GtkWidget *sidebar_revealer;
+    GtkWidget *sidebar_handle;
     GtkWidget *view_stack;
     GtkWidget *switcher_box;
     GtkWidget *menu_box;
@@ -116,6 +117,10 @@ melange_main_window_cancel_sidebar_timeout(MelangeMainWindow *win) {
 
 static void
 melange_main_window_hide_sidebar_after_timeout(MelangeMainWindow *win, guint timeout) {
+    gboolean auto_hide_sidebar;
+    g_object_get(win->app, "auto-hide-sidebar", &auto_hide_sidebar, NULL);
+    if (!auto_hide_sidebar) return;
+
     melange_main_window_cancel_sidebar_timeout(win);
     if (gtk_revealer_get_child_revealed(GTK_REVEALER(win->sidebar_revealer))) {
         win->sidebar_timeout = g_timeout_add(timeout,
@@ -159,6 +164,24 @@ melange_main_window_dark_theme_setting_state_set(GtkSwitch *widget, gboolean sta
 }
 
 
+GLADE_EVENT_HANDLER gboolean
+melange_main_window_auto_hide_sidebar_setting_state_set(GtkSwitch *widget, gboolean state,
+        MelangeMainWindow *win)
+{
+    (void) widget;
+    g_object_set(win->app, "auto-hide-sidebar", state, NULL);
+    return FALSE;
+}
+
+
+GLADE_EVENT_HANDLER void
+melange_main_window_client_side_decorations_setting_changed(GtkComboBox *combo_box,
+        MelangeMainWindow *win)
+{
+    g_object_set(win->app, "client-side-decorations", gtk_combo_box_get_active_id(combo_box), NULL);
+}
+
+
 static void
 melange_main_window_realize(GtkWidget *widget) {
     GTK_WIDGET_CLASS(melange_main_window_parent_class)->realize(widget);
@@ -199,6 +222,27 @@ melange_main_window_create_switcher_button(const char *icon, GtkWidget *switch_t
 
 
 static void
+melange_main_window_app_notify_auto_hide_sidebar(GObject *app, GParamSpec *pspec,
+        MelangeMainWindow *win) {
+    (void) pspec;
+
+    gboolean auto_hide_sidebar;
+    g_object_get(app, "auto-hide-sidebar", &auto_hide_sidebar, NULL);
+    gtk_widget_set_visible(win->sidebar_handle, auto_hide_sidebar);
+}
+
+
+static void
+melange_main_window_app_notify_client_side_decorations(GObject *app, GParamSpec *pspec,
+        MelangeMainWindow *win) {
+    (void) pspec;
+
+    gboolean client_side_decorations;
+    g_object_get(app, "client-side-decorations", &client_side_decorations, NULL);
+}
+
+
+static void
 melange_main_window_constructed(GObject *obj) {
     MelangeMainWindow *win = MELANGE_MAIN_WINDOW(obj);
     g_return_if_fail(win->app);
@@ -210,6 +254,7 @@ melange_main_window_constructed(GObject *obj) {
     gtk_container_add(GTK_CONTAINER(win), layout);
 
     win->sidebar_revealer = GTK_WIDGET(gtk_builder_get_object(builder, "sidebar-revealer"));
+    win->sidebar_handle = GTK_WIDGET(gtk_builder_get_object(builder, "sidebar-handle"));
     win->view_stack = GTK_WIDGET(gtk_builder_get_object(builder, "view-stack"));
     win->menu_box = GTK_WIDGET(gtk_builder_get_object(builder, "menu-box"));
     win->switcher_box = GTK_WIDGET(gtk_builder_get_object(builder, "switcher-box"));
@@ -223,6 +268,13 @@ melange_main_window_constructed(GObject *obj) {
 
     win->settings_view = GTK_WIDGET(gtk_builder_get_object(builder, "settings-view"));
     gtk_container_add(GTK_CONTAINER(win->view_stack), win->settings_view);
+
+    GtkSwitch *dark_theme_setting = GTK_SWITCH(gtk_builder_get_object(builder,
+            "dark-theme-setting"));
+    GtkSwitch *auto_hide_sidebar_setting = GTK_SWITCH(gtk_builder_get_object(builder,
+            "auto-hide-sidebar-setting"));
+    GtkComboBox *client_side_decorations_setting = GTK_COMBO_BOX(gtk_builder_get_object(builder,
+            "client-side-decorations-setting"));
 
     g_object_unref(builder);
 
@@ -248,6 +300,23 @@ melange_main_window_constructed(GObject *obj) {
             melange_main_window_create_switcher_button("res/icons/add.svg", win->add_view));
     gtk_container_add(GTK_CONTAINER(win->menu_box), melange_main_window_create_switcher_button(
             "res/icons/settings.svg", win->settings_view));
+
+    gboolean dark_theme;
+    g_object_get(win->app, "dark-theme", &dark_theme, NULL);
+    gtk_switch_set_state(dark_theme_setting, dark_theme);
+
+    gboolean auto_hide_sidebar;
+    g_object_get(win->app, "auto-hide-sidebar", &auto_hide_sidebar, NULL);
+    gtk_switch_set_state(dark_theme_setting, auto_hide_sidebar);
+    gtk_widget_set_visible(win->sidebar_handle, auto_hide_sidebar);
+    g_signal_connect(win->app, "notify::auto-hide-sidebar",
+            G_CALLBACK(melange_main_window_app_notify_auto_hide_sidebar), win);
+
+    const char *client_side_decorations;
+    g_object_get(win->app, "client-side-decorations", &client_side_decorations, NULL);
+    gtk_combo_box_set_active_id(client_side_decorations_setting, client_side_decorations);
+    g_signal_connect(win->app, "notify::client-side-decorations",
+            G_CALLBACK(melange_main_window_app_notify_client_side_decorations), win);
 
     gtk_application_window_set_show_menubar(GTK_APPLICATION_WINDOW(win), FALSE);
     if (gtk_application_prefers_app_menu(GTK_APPLICATION(win->app))) {
