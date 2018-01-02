@@ -359,7 +359,7 @@ melange_main_window_constructed(GObject *obj) {
         gtk_header_bar_pack_end(GTK_HEADER_BAR(header_bar), switcher);
     } else {
         gtk_container_add(GTK_CONTAINER(win->menu_box), melange_main_window_create_switcher_button(
-                "res/icons/settings.svg", 8, win->settings_view));
+                sidebar_dark ? "res/icons/dark/settings.svg" : "res/icons/light/settings.svg", 8, win->settings_view));
     }
 
     gtk_application_window_set_show_menubar(GTK_APPLICATION_WINDOW(win), FALSE);

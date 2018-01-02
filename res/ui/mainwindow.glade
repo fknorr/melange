@@ -245,7 +245,7 @@
     </child>
     <child>
       <object class="GtkLinkButton" id="about-link">
-        <property name="label" translatable="yes">button</property>
+        <property name="label" translatable="yes">Fork me on Github</property>
         <property name="visible">True</property>
         <property name="can_focus">True</property>
         <property name="receives_default">True</property>
