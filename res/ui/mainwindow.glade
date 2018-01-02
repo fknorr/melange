@@ -193,7 +193,7 @@
               <object class="GtkRevealer" id="sidebar-revealer">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="transition_type">none</property>
+                <property name="transition_type">slide-right</property>
                 <property name="transition_duration">200</property>
                 <property name="reveal_child">True</property>
                 <child>
@@ -246,17 +246,32 @@
               </packing>
             </child>
             <child>
+              <object class="GtkBox" id="sidebar_spacing">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="margin_right">3</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <placeholder/>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
               <object class="GtkImage" id="sidebar-handle">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="margin_left">3</property>
                 <property name="margin_right">3</property>
                 <property name="stock">gtk-missing-image</property>
               </object>
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="position">1</property>
+                <property name="position">2</property>
               </packing>
             </child>
           </object>

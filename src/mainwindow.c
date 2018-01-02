@@ -189,6 +189,10 @@ melange_main_window_realize(GtkWidget *widget) {
     MelangeMainWindow *win = MELANGE_MAIN_WINDOW(widget);
     melange_main_window_hide_sidebar_after_timeout(win, 3000);
     gtk_stack_set_visible_child(GTK_STACK(win->view_stack), win->web_view);
+
+    gboolean auto_hide_sidebar;
+    g_object_get(win->app, "auto-hide-sidebar", &auto_hide_sidebar, NULL);
+    gtk_widget_set_visible(win->sidebar_handle, auto_hide_sidebar);
 }
 
 
@@ -307,7 +311,6 @@ melange_main_window_constructed(GObject *obj) {
 
     gboolean auto_hide_sidebar;
     g_object_get(win->app, "auto-hide-sidebar", &auto_hide_sidebar, NULL);
-    gtk_switch_set_state(dark_theme_setting, auto_hide_sidebar);
     gtk_widget_set_visible(win->sidebar_handle, auto_hide_sidebar);
     g_signal_connect(win->app, "notify::auto-hide-sidebar",
             G_CALLBACK(melange_main_window_app_notify_auto_hide_sidebar), win);
