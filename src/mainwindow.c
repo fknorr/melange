@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "app.h"
 #include "util.h"
+#include <math.h>
 
 
 struct MelangeMainWindow
@@ -17,8 +18,10 @@ struct MelangeMainWindow
     GtkWidget *view_stack;
     GtkWidget *switcher_box;
     GtkWidget *menu_box;
+    GtkWidget *header_bar;
 
     guint sidebar_timeout;
+    const char* initial_csd_setting;
 };
 
 typedef GtkApplicationWindowClass MelangeMainWindowClass;
@@ -207,15 +210,24 @@ melange_main_window_init(MelangeMainWindow *win) {
 
 static void
 melange_main_window_switch_to_view(GtkButton *button, GtkWidget *switch_to) {
+    (void) button;
+
     GtkStack *stack = GTK_STACK(gtk_widget_get_parent(switch_to));
     gtk_stack_set_visible_child(stack, switch_to);
 }
 
 
 static GtkWidget *
-melange_main_window_create_switcher_button(const char *icon, GtkWidget *switch_to) {
-    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(icon, 32, 32, NULL);
+melange_main_window_create_switcher_button(const char *icon, int padding, GtkWidget *switch_to) {
+    int padded_size = 32 - 2 * padding;
+    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(icon, padded_size, padded_size, NULL);
+
     GtkWidget *image = gtk_image_new_from_pixbuf(pixbuf);
+    gtk_widget_set_margin_top(image, padding);
+    gtk_widget_set_margin_bottom(image, padding);
+    gtk_widget_set_margin_start(image, padding);
+    gtk_widget_set_margin_end(image, padding);
+
     GtkWidget *switcher = gtk_button_new();
     gtk_button_set_relief(GTK_BUTTON(switcher), GTK_RELIEF_NONE);
     gtk_button_set_image(GTK_BUTTON(switcher), image);
@@ -239,10 +251,9 @@ melange_main_window_app_notify_auto_hide_sidebar(GObject *app, GParamSpec *pspec
 static void
 melange_main_window_app_notify_client_side_decorations(GObject *app, GParamSpec *pspec,
         MelangeMainWindow *win) {
+    (void) app;
     (void) pspec;
-
-    gboolean client_side_decorations;
-    g_object_get(app, "client-side-decorations", &client_side_decorations, NULL);
+    (void) win;
 }
 
 
@@ -298,13 +309,6 @@ melange_main_window_constructed(GObject *obj) {
     webkit_web_view_load_uri(WEBKIT_WEB_VIEW(win->web_view), "https://web.whatsapp.com");
     gtk_container_add(GTK_CONTAINER(win->view_stack), win->web_view);
 
-    gtk_container_add(GTK_CONTAINER(win->switcher_box),
-            melange_main_window_create_switcher_button("res/icons/melange.svg", win->web_view));
-    gtk_container_add(GTK_CONTAINER(win->switcher_box),
-            melange_main_window_create_switcher_button("res/icons/add.svg", win->add_view));
-    gtk_container_add(GTK_CONTAINER(win->menu_box), melange_main_window_create_switcher_button(
-            "res/icons/settings.svg", win->settings_view));
-
     gboolean dark_theme;
     g_object_get(win->app, "dark-theme", &dark_theme, NULL);
     gtk_switch_set_state(dark_theme_setting, dark_theme);
@@ -312,6 +316,7 @@ melange_main_window_constructed(GObject *obj) {
     gboolean auto_hide_sidebar;
     g_object_get(win->app, "auto-hide-sidebar", &auto_hide_sidebar, NULL);
     gtk_widget_set_visible(win->sidebar_handle, auto_hide_sidebar);
+    gtk_switch_set_state(auto_hide_sidebar_setting, auto_hide_sidebar);
     g_signal_connect(win->app, "notify::auto-hide-sidebar",
             G_CALLBACK(melange_main_window_app_notify_auto_hide_sidebar), win);
 
@@ -321,12 +326,43 @@ melange_main_window_constructed(GObject *obj) {
     g_signal_connect(win->app, "notify::client-side-decorations",
             G_CALLBACK(melange_main_window_app_notify_client_side_decorations), win);
 
-    gtk_application_window_set_show_menubar(GTK_APPLICATION_WINDOW(win), FALSE);
-    if (gtk_application_prefers_app_menu(GTK_APPLICATION(win->app))) {
-        GtkWidget *header_bar = gtk_header_bar_new();
+    const char* csd_option;
+    g_object_get(win->app, "client-side-decorations", &csd_option, NULL);
+
+    gboolean enable_csd = TRUE;
+    if (g_str_equal(csd_option, "on")) {
+        enable_csd = TRUE;
+    } else if (g_str_equal(csd_option, "auto")) {
+        enable_csd = gtk_application_prefers_app_menu(GTK_APPLICATION(win->app));
+    }
+
+    GtkWidget *header_bar = NULL;
+    if (enable_csd) {
+        header_bar = gtk_header_bar_new();
         gtk_header_bar_set_show_close_button(GTK_HEADER_BAR(header_bar), TRUE);
         gtk_window_set_titlebar(GTK_WINDOW(win), header_bar);
     }
+
+    gtk_container_add(GTK_CONTAINER(win->switcher_box),
+                      melange_main_window_create_switcher_button("res/icons/melange.svg", 0, win->web_view));
+
+    gboolean sidebar_dark = melange_util_has_dark_background(GTK_WIDGET(win));
+    gtk_container_add(GTK_CONTAINER(win->switcher_box), melange_main_window_create_switcher_button(
+            sidebar_dark ? "res/icons/dark/add.svg" : "res/icons/light/add.svg", 8, win->add_view));
+
+    if (enable_csd) {
+        gboolean header_bar_dark = melange_util_has_dark_background(header_bar);
+        GtkWidget *image = gtk_image_new_from_pixbuf(gdk_pixbuf_new_from_file_at_size(
+                header_bar_dark ? "res/icons/dark/settings.svg" : "res/icons/light/settings.svg", 16, 16, NULL));
+        GtkWidget *switcher = GTK_WIDGET(gtk_tool_button_new(image, "Preferences"));
+        g_signal_connect(switcher, "clicked", G_CALLBACK(melange_main_window_switch_to_view), win->settings_view);
+        gtk_header_bar_pack_end(GTK_HEADER_BAR(header_bar), switcher);
+    } else {
+        gtk_container_add(GTK_CONTAINER(win->menu_box), melange_main_window_create_switcher_button(
+                "res/icons/settings.svg", 8, win->settings_view));
+    }
+
+    gtk_application_window_set_show_menubar(GTK_APPLICATION_WINDOW(win), FALSE);
 }
 
 

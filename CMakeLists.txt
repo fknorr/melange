@@ -42,7 +42,7 @@ add_executable(melange
     src/main.c
     src/app.c src/app.h
     src/mainwindow.c src/mainwindow.h
-        src/util.h)
+        src/util.h src/util.c)
 
 target_link_libraries(melange
     ${GTK3_LIBRARIES}
