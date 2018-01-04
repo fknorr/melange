@@ -259,6 +259,8 @@ melange_main_window_app_notify_client_side_decorations(GObject *app, GParamSpec 
 
 static void
 melange_main_window_constructed(GObject *obj) {
+    G_OBJECT_CLASS(melange_main_window_parent_class)->constructed(obj);
+
     MelangeMainWindow *win = MELANGE_MAIN_WINDOW(obj);
     g_return_if_fail(win->app);
 
@@ -370,6 +372,8 @@ static void
 melange_main_window_finalize(GObject *obj) {
     MelangeMainWindow *win = MELANGE_MAIN_WINDOW(obj);
     g_signal_handlers_disconnect_by_data(win->app, win);
+
+    G_OBJECT_CLASS(melange_main_window_parent_class)->finalize(obj);
 }
 
 
