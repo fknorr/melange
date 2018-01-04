@@ -218,11 +218,11 @@ melange_main_window_switch_to_view(GtkButton *button, GtkWidget *switch_to) {
 
 
 static GtkWidget *
-melange_main_window_create_switcher_button(const char *icon, int padding, GtkWidget *switch_to) {
+melange_main_window_create_switcher_button(GdkPixbuf *pixbuf, int padding, GtkWidget *switch_to) {
     int padded_size = 32 - 2 * padding;
-    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(icon, padded_size, padded_size, NULL);
 
     GtkWidget *image = gtk_image_new_from_pixbuf(pixbuf);
+    gtk_image_set_pixel_size(image, padded_size);
     gtk_widget_set_margin_top(image, padding);
     gtk_widget_set_margin_bottom(image, padding);
     gtk_widget_set_margin_start(image, padding);
@@ -234,6 +234,31 @@ melange_main_window_create_switcher_button(const char *icon, int padding, GtkWid
     g_signal_connect(switcher, "clicked", G_CALLBACK(melange_main_window_switch_to_view),
             switch_to);
     return switcher;
+}
+
+
+static GtkWidget *
+melange_main_window_create_utility_switcher_button(const char* icon, GtkWidget *switch_to) {
+    int padded_size = 16;
+
+    char *file_name = g_strdup_printf("res/icons/light/%s.svg", icon);
+    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(file_name, padded_size, padded_size, NULL);
+    g_free(file_name);
+
+    return melange_main_window_create_switcher_button(pixbuf, 8, switch_to);
+}
+
+
+static GtkWidget *
+melange_main_window_create_messenger_switcher_button(MelangeMainWindow *win, const char* hostname,
+                                                     GtkWidget *switch_to)
+{
+    GdkPixbuf *pixbuf = melange_app_request_icon(win->app, hostname);
+    if (!pixbuf) {
+        pixbuf = gdk_pixbuf_new_from_file_at_size("res/icons/light/messenger.svg", 32, 32, NULL);
+    }
+
+    return melange_main_window_create_switcher_button(pixbuf, 0, switch_to);
 }
 
 
@@ -346,11 +371,9 @@ melange_main_window_constructed(GObject *obj) {
     }
 
     gtk_container_add(GTK_CONTAINER(win->switcher_box),
-                      melange_main_window_create_switcher_button("res/icons/melange.svg", 0, win->web_view));
-
-    gboolean sidebar_dark = melange_util_has_dark_background(GTK_WIDGET(win));
-    gtk_container_add(GTK_CONTAINER(win->switcher_box), melange_main_window_create_switcher_button(
-            sidebar_dark ? "res/icons/dark/add.svg" : "res/icons/light/add.svg", 8, win->add_view));
+                      melange_main_window_create_messenger_switcher_button(win, "web.whatsapp.com", win->web_view));
+    gtk_container_add(GTK_CONTAINER(win->switcher_box),
+                      melange_main_window_create_utility_switcher_button("add", win->add_view));
 
     if (enable_csd) {
         gboolean header_bar_dark = melange_util_has_dark_background(header_bar);
@@ -360,8 +383,8 @@ melange_main_window_constructed(GObject *obj) {
         g_signal_connect(switcher, "clicked", G_CALLBACK(melange_main_window_switch_to_view), win->settings_view);
         gtk_header_bar_pack_end(GTK_HEADER_BAR(header_bar), switcher);
     } else {
-        gtk_container_add(GTK_CONTAINER(win->menu_box), melange_main_window_create_switcher_button(
-                sidebar_dark ? "res/icons/dark/settings.svg" : "res/icons/light/settings.svg", 8, win->settings_view));
+        gtk_container_add(GTK_CONTAINER(win->menu_box),
+                          melange_main_window_create_utility_switcher_button("settings", win->settings_view));
     }
 
     gtk_application_window_set_show_menubar(GTK_APPLICATION_WINDOW(win), FALSE);

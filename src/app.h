@@ -15,9 +15,11 @@ typedef struct MelangeApp MelangeApp;
 
 GApplication *melange_app_new(void);
 
+GType melange_app_get_type(void);
+
 WebKitWebContext *melange_app_get_web_context(MelangeApp *app);
 
-GType melange_app_get_type(void);
+GdkPixbuf *melange_app_request_icon(MelangeApp *app, const char *hostname);
 
 
 #endif // MELANGE_APP_H
