@@ -283,6 +283,45 @@ melange_main_window_app_notify_client_side_decorations(GObject *app, GParamSpec 
 }
 
 
+static gboolean
+melange_main_window_navigate_back(MelangeMainWindow *win) {
+    GtkWidget *view = gtk_stack_get_visible_child(GTK_STACK(win->view_stack));
+    if (view == win->settings_view || view == win->add_view) {
+        gtk_stack_set_visible_child(GTK_STACK(win->view_stack), win->web_view);
+    } else if (view == win->account_details_view) {
+        gtk_stack_set_visible_child(GTK_STACK(win->view_stack), win->add_view);
+    } else {
+        return FALSE;
+    }
+    return TRUE;
+}
+
+
+GLADE_EVENT_HANDLER gboolean
+melange_main_window_button_press_event(GtkWidget *widget, GdkEvent *event, MelangeMainWindow *win) {
+    switch (event->button.button){
+        case 8: // Mouse "back" button
+            return melange_main_window_navigate_back(win);
+
+        default:
+            return FALSE;
+    }
+}
+
+
+static gboolean
+melange_main_window_key_press_event(GtkWidget *widget, GdkEventKey *event, MelangeMainWindow *win) {
+    (void) widget;
+
+    switch (event->keyval) {
+        case GDK_KEY_Back:
+        case GDK_KEY_Escape:
+            return melange_main_window_navigate_back(win);
+    }
+    return FALSE;
+}
+
+
 static GtkWidget *
 melange_main_window_create_service_add_button(MelangeMainWindow *win, const char *name, const char *hostname) {
     GdkPixbuf *pixbuf = NULL;
@@ -437,6 +476,14 @@ melange_main_window_constructed(GObject *obj) {
         gtk_container_add(GTK_CONTAINER(win->menu_box),
                           melange_main_window_create_utility_switcher_button("settings", win->settings_view));
     }
+
+    GdkEventMask events;
+    g_object_get(win, "events", &events, NULL);
+    printf("events %x\n", events);
+    g_object_set(win, "events", events | GDK_BUTTON_PRESS_MASK, NULL);
+
+    g_signal_connect(win, "button-press-event", G_CALLBACK(melange_main_window_button_press_event), win);
+    g_signal_connect(win, "key-press-event", G_CALLBACK(melange_main_window_key_press_event), win);
 
     gtk_application_window_set_show_menubar(GTK_APPLICATION_WINDOW(win), FALSE);
 }
