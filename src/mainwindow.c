@@ -13,6 +13,7 @@ struct MelangeMainWindow
     GtkWidget *web_view;
     GtkWidget *add_view;
     GtkWidget *settings_view;
+    GtkWidget *account_details_view;
     GtkWidget *sidebar_revealer;
     GtkWidget *sidebar_handle;
     GtkWidget *view_stack;
@@ -282,6 +283,36 @@ melange_main_window_app_notify_client_side_decorations(GObject *app, GParamSpec 
 }
 
 
+static GtkWidget *
+melange_main_window_create_service_add_button(MelangeMainWindow *win, const char *name, const char *hostname) {
+    GdkPixbuf *pixbuf = NULL;
+    if (hostname) {
+        pixbuf = melange_app_request_icon(win->app, hostname);
+    }
+    if (!pixbuf) {
+        pixbuf = gdk_pixbuf_new_from_file_at_size("res/icons/light/messenger.svg", 32, 32, NULL);
+    }
+
+    GtkWidget *image = gtk_image_new_from_pixbuf(pixbuf);
+
+    GtkWidget *label = gtk_label_new(name);
+    gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
+    gtk_label_set_width_chars(GTK_LABEL(label), 12);
+
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_container_add(GTK_CONTAINER(box), image);
+    gtk_container_add(GTK_CONTAINER(box), label);
+
+    GtkWidget *button = gtk_button_new();
+    gtk_widget_set_margin_top(box, 10);
+    gtk_widget_set_margin_bottom(box, 10);
+    gtk_widget_set_margin_start(box, 20);
+    gtk_widget_set_margin_end(box, 20);
+    gtk_container_add(GTK_CONTAINER(button), box);
+    return button;
+}
+
+
 static void
 melange_main_window_constructed(GObject *obj) {
     G_OBJECT_CLASS(melange_main_window_parent_class)->constructed(obj);
@@ -307,6 +338,19 @@ melange_main_window_constructed(GObject *obj) {
 
     win->add_view = GTK_WIDGET(gtk_builder_get_object(builder, "add-view"));
     gtk_container_add(GTK_CONTAINER(win->view_stack), win->add_view);
+    win->account_details_view = GTK_WIDGET(gtk_builder_get_object(builder, "account-details-view"));
+    gtk_container_add(GTK_CONTAINER(win->view_stack), win->account_details_view);
+
+    GtkWidget *service_grid = GTK_WIDGET(gtk_builder_get_object(builder, "service-grid"));
+    gtk_container_add(GTK_CONTAINER(service_grid),
+                      melange_main_window_create_service_add_button(win, "WhatsApp", "web.whatsapp.com"));
+    gtk_container_add(GTK_CONTAINER(service_grid),
+                      melange_main_window_create_service_add_button(win, "Telegram", "web.telegram.org"));
+
+    GtkWidget *custom_service_button = melange_main_window_create_service_add_button(win, "Custom", NULL);
+    g_signal_connect(custom_service_button, "clicked", G_CALLBACK(melange_main_window_switch_to_view),
+                     win->account_details_view);
+    gtk_container_add(GTK_CONTAINER(service_grid), custom_service_button);
 
     win->settings_view = GTK_WIDGET(gtk_builder_get_object(builder, "settings-view"));
     gtk_container_add(GTK_CONTAINER(win->view_stack), win->settings_view);
