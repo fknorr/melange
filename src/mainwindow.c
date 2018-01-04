@@ -303,7 +303,7 @@ melange_main_window_constructed(GObject *obj) {
 
     GtkImage *sidebar_handle = GTK_IMAGE(gtk_builder_get_object(builder, "sidebar-handle"));
     gtk_image_set_from_pixbuf(sidebar_handle,
-            gdk_pixbuf_new_from_file_at_size("res/icons/vdots.svg", 4, -1, NULL));
+            gdk_pixbuf_new_from_file_at_size("res/icons/light/vdots.svg", 4, -1, NULL));
 
     win->add_view = GTK_WIDGET(gtk_builder_get_object(builder, "add-view"));
     gtk_container_add(GTK_CONTAINER(win->view_stack), win->add_view);
@@ -319,6 +319,13 @@ melange_main_window_constructed(GObject *obj) {
             "client-side-decorations-setting"));
 
     g_object_unref(builder);
+
+    GtkCssProvider *css_provider = gtk_css_provider_new();
+    if (!gtk_css_provider_load_from_path(css_provider, "res/ui/mainwindow.css", NULL)) {
+        g_warning("Unable to load CSS file");
+    }
+    gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css_provider),
+                                   GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
     WebKitWebContext *web_context = melange_app_get_web_context(win->app);
     win->web_view = webkit_web_view_new_with_context(web_context);
