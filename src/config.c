@@ -1,4 +1,5 @@
 #include "config.h"
+#include "presets.h"
 #include <stdio.h>
 #include <errno.h>
 
@@ -15,18 +16,29 @@ int melange_config_parser_parse(void);
 
 
 MelangeAccount *
-melange_account_new_preset(char *id, char *preset) {
-    MelangeAccount account = {
-        .id = id,
-        .preset = preset,
-    };
-    return g_memdup(&account, sizeof account);
+melange_account_new_from_preset(char *id, const char *preset_name) {
+    const MelangeAccount *preset = NULL;
+    for (size_t i = 0; i < melange_n_account_presets; ++i) {
+        if (g_str_equal(melange_account_presets[i].preset, preset_name)) {
+            preset = &melange_account_presets[i];
+            break;
+        }
+    }
+
+    if (preset) {
+        MelangeAccount *account = g_memdup(preset, sizeof *preset);
+        account->id = id;
+        return account;
+    } else {
+        g_warning("Unknown account preset %s", preset_name);
+        return NULL;
+    }
 }
 
 
 MelangeAccount *
-melange_account_new_custom(char *id, char *service_name, char *service_url, char *icon_url,
-                           char *user_agent)
+melange_account_new(char *id, char *service_name, char *service_url, char *icon_url,
+                    char *user_agent)
 {
     MelangeAccount account = {
         .id = id,
@@ -42,11 +54,12 @@ melange_account_new_custom(char *id, char *service_name, char *service_url, char
 void
 melange_account_free(MelangeAccount *account) {
     g_free(account->id);
-    g_free(account->preset);
-    g_free(account->service_name);
-    g_free(account->service_url);
-    g_free(account->icon_url);
-    g_free(account->user_agent);
+    if (!account->preset) {
+        g_free(account->service_name);
+        g_free(account->service_url);
+        g_free(account->icon_url);
+        g_free(account->user_agent);
+    }
     g_free(account);
 }
 

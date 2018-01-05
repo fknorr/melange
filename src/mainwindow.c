@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "app.h"
+#include "presets.h"
 #include "util.h"
 #include <math.h>
 
@@ -20,6 +21,8 @@ struct MelangeMainWindow
     GtkWidget *switcher_box;
     GtkWidget *menu_box;
     GtkWidget *header_bar;
+
+    GArray *account_views;
 
     guint sidebar_timeout;
     const char* initial_csd_setting;
@@ -71,9 +74,7 @@ melange_main_window_web_view_notify_title(GObject *gobject, GParamSpec *pspec,
         MelangeMainWindow *win) {
     (void) gobject;
     (void) pspec;
-
-    gtk_window_set_title(GTK_WINDOW(win),
-            webkit_web_view_get_title(WEBKIT_WEB_VIEW(win->web_view)));
+    (void) win;
 }
 
 
@@ -192,7 +193,7 @@ melange_main_window_realize(GtkWidget *widget) {
 
     MelangeMainWindow *win = MELANGE_MAIN_WINDOW(widget);
     melange_main_window_hide_sidebar_after_timeout(win, 3000);
-    gtk_stack_set_visible_child(GTK_STACK(win->view_stack), win->web_view);
+    gtk_stack_set_visible_child(GTK_STACK(win->view_stack), win->add_view);
 
     gboolean auto_hide_sidebar;
     g_object_get(win->app, "auto-hide-sidebar", &auto_hide_sidebar, NULL);
@@ -251,14 +252,16 @@ melange_main_window_create_utility_switcher_button(const char* icon, GtkWidget *
 
 
 static GtkWidget *
-melange_main_window_create_messenger_switcher_button(MelangeMainWindow *win, const char* hostname,
-                                                     GtkWidget *switch_to)
+melange_main_window_create_messenger_switcher_button(MelangeMainWindow *win,
+         const MelangeAccount *account, GtkWidget *switch_to)
 {
-    GdkPixbuf *pixbuf = melange_app_request_icon(win->app, hostname);
+    GdkPixbuf *pixbuf = NULL;
+    if (account->preset) {
+        pixbuf = melange_app_request_icon(win->app, account->preset);
+    }
     if (!pixbuf) {
         pixbuf = gdk_pixbuf_new_from_file_at_size("res/icons/light/messenger.svg", 32, 32, NULL);
     }
-
     return melange_main_window_create_switcher_button(pixbuf, 0, switch_to);
 }
 
@@ -325,10 +328,10 @@ melange_main_window_key_press_event(GtkWidget *widget, GdkEventKey *event, Melan
 
 
 static GtkWidget *
-melange_main_window_create_service_add_button(MelangeMainWindow *win, const char *name, const char *hostname) {
+melange_main_window_create_service_add_button(MelangeMainWindow *win, const MelangeAccount *account) {
     GdkPixbuf *pixbuf = NULL;
-    if (hostname) {
-        pixbuf = melange_app_request_icon(win->app, hostname);
+    if (account && account->preset) {
+        pixbuf = melange_app_request_icon(win->app, account->preset);
     }
     if (!pixbuf) {
         pixbuf = gdk_pixbuf_new_from_file_at_size("res/icons/light/messenger.svg", 32, 32, NULL);
@@ -336,7 +339,7 @@ melange_main_window_create_service_add_button(MelangeMainWindow *win, const char
 
     GtkWidget *image = gtk_image_new_from_pixbuf(pixbuf);
 
-    GtkWidget *label = gtk_label_new(name);
+    GtkWidget *label = gtk_label_new(account ? account->service_name : "Custom");
     gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
     gtk_label_set_width_chars(GTK_LABEL(label), 12);
 
@@ -351,6 +354,41 @@ melange_main_window_create_service_add_button(MelangeMainWindow *win, const char
     gtk_widget_set_margin_end(box, 20);
     gtk_container_add(GTK_CONTAINER(button), box);
     return button;
+}
+
+
+static GtkWidget *
+melange_main_window_create_account_view(MelangeMainWindow *win, MelangeAccount *account) {
+    char *base_path = g_strdup_printf("%s/melange/accounts/%s", g_get_user_cache_dir(),
+                                      account->id);
+
+    WebKitWebsiteDataManager *data_manager = webkit_website_data_manager_new(
+            "base-data-directory", base_path,
+            "base-cache-directory", base_path,
+            NULL);
+
+    g_free(base_path);
+
+    WebKitWebContext *web_context = webkit_web_context_new_with_website_data_manager(data_manager);
+
+    WebKitSecurityOrigin *origin = webkit_security_origin_new_for_uri(account->service_url);
+    GList *allowed_origins = g_list_append(NULL, origin);
+    webkit_web_context_initialize_notification_permissions(web_context, allowed_origins, NULL);
+
+    GtkWidget *web_view = webkit_web_view_new_with_context(web_context);
+    g_signal_connect(web_view, "context-menu",
+                     G_CALLBACK(melange_main_window_web_view_context_menu), win);
+    g_signal_connect(web_view, "notify::title",
+                     G_CALLBACK(melange_main_window_web_view_notify_title), win);
+    g_signal_connect(web_view, "load-changed",
+                     G_CALLBACK(melange_main_window_web_view_load_changed), win);
+
+    WebKitSettings *sett = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(web_view));
+    webkit_settings_set_user_agent(sett, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/63.0.3239.108 Safari/537.36");
+
+    webkit_web_view_load_uri(WEBKIT_WEB_VIEW(web_view), "https://web.whatsapp.com");
+    return web_view;
 }
 
 
@@ -383,12 +421,13 @@ melange_main_window_constructed(GObject *obj) {
     gtk_container_add(GTK_CONTAINER(win->view_stack), win->account_details_view);
 
     GtkWidget *service_grid = GTK_WIDGET(gtk_builder_get_object(builder, "service-grid"));
-    gtk_container_add(GTK_CONTAINER(service_grid),
-                      melange_main_window_create_service_add_button(win, "WhatsApp", "web.whatsapp.com"));
-    gtk_container_add(GTK_CONTAINER(service_grid),
-                      melange_main_window_create_service_add_button(win, "Telegram", "web.telegram.org"));
+    for (size_t i = 0; i < melange_n_account_presets; ++i) {
+        GtkWidget *button = melange_main_window_create_service_add_button(
+                win, &melange_account_presets[i]);
+        gtk_container_add(GTK_CONTAINER(service_grid), button);
+    }
 
-    GtkWidget *custom_service_button = melange_main_window_create_service_add_button(win, "Custom", NULL);
+    GtkWidget *custom_service_button = melange_main_window_create_service_add_button(win, NULL);
     g_signal_connect(custom_service_button, "clicked", G_CALLBACK(melange_main_window_switch_to_view),
                      win->account_details_view);
     gtk_container_add(GTK_CONTAINER(service_grid), custom_service_button);
@@ -412,20 +451,8 @@ melange_main_window_constructed(GObject *obj) {
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css_provider),
                                    GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-    WebKitWebContext *web_context = melange_app_get_web_context(win->app);
-    win->web_view = webkit_web_view_new_with_context(web_context);
-    g_signal_connect(win->web_view, "context-menu",
-            G_CALLBACK(melange_main_window_web_view_context_menu), NULL);
-    g_signal_connect(win->web_view, "notify::title",
-            G_CALLBACK(melange_main_window_web_view_notify_title), win);
-    g_signal_connect(win->web_view, "load-changed",
-            G_CALLBACK(melange_main_window_web_view_load_changed), NULL);
-
-    WebKitSettings *sett = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(win->web_view));
-    webkit_settings_set_user_agent(sett, "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/63.0.3239.108 Safari/537.36");
-
-    webkit_web_view_load_uri(WEBKIT_WEB_VIEW(win->web_view), "https://web.whatsapp.com");
+    MelangeAccount *example_account = melange_account_new_from_preset("wa1", "whatsapp");
+    win->web_view = melange_main_window_create_account_view(win, example_account);
     gtk_container_add(GTK_CONTAINER(win->view_stack), win->web_view);
 
     gboolean dark_theme;
@@ -463,7 +490,7 @@ melange_main_window_constructed(GObject *obj) {
     }
 
     gtk_container_add(GTK_CONTAINER(win->switcher_box),
-                      melange_main_window_create_messenger_switcher_button(win, "web.whatsapp.com", win->web_view));
+                      melange_main_window_create_messenger_switcher_button(win, example_account, win->web_view));
     gtk_container_add(GTK_CONTAINER(win->switcher_box),
                       melange_main_window_create_utility_switcher_button("add", win->add_view));
 

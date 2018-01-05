@@ -1,6 +1,6 @@
 #include "app.h"
 #include "util.h"
-#include "config.h"
+#include "presets.h"
 #include "mainwindow.h"
 
 
@@ -31,7 +31,7 @@ enum {
 
 typedef struct MelangeAppIconDownloadContext {
     MelangeApp *app;
-    const char *hostname;
+    const MelangeAccount *preset;
     gboolean failed;
 } MelangeAppIconDownloadContext;
 
@@ -159,7 +159,8 @@ melange_app_decide_icon_destination(WebKitDownload *download, gchar *suggested_f
 {
     (void) suggested_filename;
 
-    char *uri = g_strdup_printf("file://%s/%s.ico", context->app->icon_cache_dir, context->hostname);
+    char *uri = g_strdup_printf("file://%s/%s.ico", context->app->icon_cache_dir,
+                                context->preset->preset);
     webkit_download_set_destination(download, uri);
     g_free(uri);
 
@@ -172,7 +173,7 @@ melange_app_icon_download_failed(WebKitDownload *download, GError *error, Melang
     (void) download;
     (void) error;
 
-    g_warning("Unable to download favicon from %s: %s", context->hostname, error->message);
+    g_warning("Unable to download favicon from %s: %s", context->preset->icon_url, error->message);
     context->failed = TRUE;
 }
 
@@ -183,12 +184,13 @@ melange_app_icon_download_finished(WebKitDownload *download, MelangeAppIconDownl
 
     if (context->failed) goto cleanup;
 
-    char *file_name = g_strdup_printf("%s/%s.ico", context->app->icon_cache_dir, context->hostname);
+    char *file_name = g_strdup_printf("%s/%s.ico", context->app->icon_cache_dir,
+                                      context->preset->preset);
 
     GError *error = NULL;
     GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(file_name, 32, 32, &error);
     if (pixbuf) {
-        g_hash_table_insert(context->app->icon_table, (gpointer) context->hostname, pixbuf);
+        g_hash_table_insert(context->app->icon_table, (gpointer) context->preset->preset, pixbuf);
     } else {
         g_warning("Unable to load favicon file %s: %s", file_name, error->message);
         g_error_free(error);
@@ -203,33 +205,27 @@ cleanup:
 
 static void
 melange_app_start_updating_icons(MelangeApp *app) {
-    static const char *known_hostnames[] = {
-        "web.whatsapp.com",
-        "web.telegram.org",
-    };
-
     g_mkdir_with_parents(app->icon_cache_dir, 0777);
 
-    for (size_t i = 0; i < sizeof(known_hostnames) / sizeof(*known_hostnames); ++i) {
-        const char *hostname = known_hostnames[i];
+    for (size_t i = 0; i < melange_n_account_presets; ++i) {
+        const MelangeAccount *preset = &melange_account_presets[i];
 
-        char *file_name = g_strdup_printf("%s/%s.ico", app->icon_cache_dir, hostname);
+        char *file_name = g_strdup_printf("%s/%s.ico", app->icon_cache_dir, preset->preset);
         GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(file_name, 32, 32, NULL);
         g_free(file_name);
 
         if (pixbuf) {
-            g_hash_table_insert(app->icon_table, (gpointer) hostname, pixbuf);
+            g_hash_table_insert(app->icon_table, (gpointer) preset->preset, pixbuf);
             continue;
         }
 
-        gchar *uri = g_strdup_printf("https://%s/favicon.ico", hostname);
-        WebKitDownload *download = webkit_web_context_download_uri(app->web_context, uri);
-        g_free(uri);
+        WebKitDownload *download = webkit_web_context_download_uri(app->web_context,
+                                                                   preset->icon_url);
 
         MelangeAppIconDownloadContext context_template = {
-                .app = app,
-                .hostname = hostname,
-                .failed = FALSE,
+            .app = app,
+            .preset = preset,
+            .failed = FALSE,
         };
 
         MelangeAppIconDownloadContext *context = g_memdup(&context_template, sizeof context_template);
@@ -299,19 +295,8 @@ melange_app_startup(GApplication *g_app) {
 
 #pragma GCC diagnostic pop
 
-    WebKitWebsiteDataManager *data_manager = webkit_website_data_manager_new(
-            "base-data-directory", "/tmp/melange/data",
-            "base-cache-directory", "/tmp/melange/cache",
-            NULL);
-
-    app->web_context = webkit_web_context_new_with_website_data_manager(data_manager);
-    webkit_web_context_set_cache_model(app->web_context, WEBKIT_CACHE_MODEL_WEB_BROWSER);
-
+    app->web_context = webkit_web_context_new_ephemeral();
     melange_app_start_updating_icons(app);
-
-    WebKitSecurityOrigin *origin = webkit_security_origin_new_for_uri("https://web.whatsapp.com");
-    GList *allowed_origins = g_list_append(NULL, origin);
-    webkit_web_context_initialize_notification_permissions(app->web_context, allowed_origins, NULL);
 
     app->main_window = melange_main_window_new(app);
     gtk_window_set_icon(GTK_WINDOW(app->main_window), icon);
@@ -356,7 +341,7 @@ melange_app_finalize(GObject *g_app) {
 
 static void
 melange_app_init(MelangeApp *app) {
-    app->icon_cache_dir = g_strdup_printf("%s/melange/icon-cache", g_get_user_cache_dir());
+    app->icon_cache_dir = g_strdup_printf("%s/melange/icons", g_get_user_cache_dir());
     app->icon_table = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, g_object_unref);
     app->config_file_name = g_strdup_printf("%s/melange/config", g_get_user_config_dir());
 }

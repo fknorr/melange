@@ -12,9 +12,7 @@ typedef enum MelangeCsdMode {
 
 typedef struct MelangeAccount {
     char *id;
-    char *preset;
-
-    // Only set if preset == NULL
+    const char *preset;
     char *service_name;
     char *service_url;
     char *icon_url;
@@ -33,10 +31,10 @@ typedef void (*MelangeAccountFunc)(MelangeAccount *account, gpointer user_data);
 typedef void (*MelangeAccountConstFunc)(const MelangeAccount *account, gpointer user_data);
 
 
-MelangeAccount *melange_account_new_preset(char *id, char *preset);
+MelangeAccount *melange_account_new_from_preset(char *id, const char *preset);
 
-MelangeAccount *melange_account_new_custom(char *id, char *service_name, char *service_url,
-                                           char *icon_url, char *user_agent);
+MelangeAccount *melange_account_new(char *id, char *service_name, char *service_url,
+                                    char *icon_url, char *user_agent);
 
 void melange_account_free(MelangeAccount *account);
 

@@ -51,7 +51,7 @@ add_executable(melange
     src/config.h src/config.c
     ${FLEX_config_parser_OUTPUTS}
     ${BISON_config_parser_OUTPUTS}
-)
+        src/presets.c src/presets.h)
 
 target_link_libraries(melange
     ${GTK3_LIBRARIES}
