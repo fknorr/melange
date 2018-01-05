@@ -138,13 +138,12 @@ config_file:
             }
         } else if (g_str_equal(block->type, "account")) {
             enum { UNKNOWN, KNOWN_PRESET, KNOWN_CUSTOM } type = UNKNOWN;
-            char *id = NULL, *preset = NULL, *service_name = NULL, *service_url = NULL,
-                    *icon_url = NULL, *user_agent = NULL;
+            MelangeAccount *account = g_malloc0(sizeof *account);
             gboolean skip = FALSE;
             for (size_t i = 0; i < block->items->len; ++i) {
                 KeyValuePair *kv = g_array_index(block->items, KeyValuePair *, i);
                 if (g_str_equal(kv->key, "id")) {
-                    move_ptr(&id, &kv->value);
+                    move_ptr(&account->id, &kv->value);
                 } else if (g_str_equal(kv->key, "preset")) {
                     if (type == KNOWN_CUSTOM) {
                         g_warning("Setting preset in custom account, skipping this account");
@@ -152,7 +151,7 @@ config_file:
                         break;
                     }
                     type = KNOWN_PRESET;
-                    move_ptr(&preset, &kv->value);
+                    move_ptr(&account->preset, &kv->value);
                 } else if (g_str_equal(kv->key, "service-name") || g_str_equal(kv->key, "service-url")
                         || g_str_equal(kv->key, "icon-url") || g_str_equal(kv->key, "user-agent")) {
                     if (type == KNOWN_PRESET) {
@@ -162,50 +161,25 @@ config_file:
                     }
                     type = KNOWN_CUSTOM;
                     if (g_str_equal(kv->key, "service-name")) {
-                        move_ptr(&service_name, &kv->value);
+                        move_ptr(&account->service_name, &kv->value);
                     } else if (g_str_equal(kv->key, "service-url")) {
-                        move_ptr(&service_url, &kv->value);
+                        move_ptr(&account->service_url, &kv->value);
                     } else if (g_str_equal(kv->key, "icon-url")) {
-                        move_ptr(&icon_url, &kv->value);
+                        move_ptr(&account->icon_url, &kv->value);
                     } else if (g_str_equal(kv->key, "user-agent")) {
-                        move_ptr(&user_agent, &kv->value);
+                        move_ptr(&account->user_agent, &kv->value);
                     }
                 } else {
                     g_warning("Ignoring unknown account detail %s", kv->key);
                 }
             }
-            if (!skip) {
-                switch (type) {
-                    case UNKNOWN:
-                        g_warning("Ignoring incomplete account in configuration");
-                        break;
-
-                    case KNOWN_PRESET:
-                        if (id && preset) {
-                            melange_config_add_preset_account(config, id, preset);
-                            id = preset = NULL;
-                        } else {
-                            g_warning("Ignoring incomplete account in configuration");
-                        }
-                        break;
-
-                    case KNOWN_CUSTOM:
-                        if (id && service_name && service_url && icon_url && user_agent) {
-                            melange_config_add_custom_account(config, id, service_name,
-                                    service_url, icon_url, user_agent);
-                            id = service_name = service_url = icon_url = user_agent = NULL;
-                        } else {
-                            g_warning("Ignoring incomplete account in configuration");
-                        }
-                        break;
-                }
+            if (!skip && account->id && (account->preset || (account->service_name && account->service_url
+                    && account->icon_url && account->user_agent))) {
+                melange_config_add_account(config, account);
+            } else {
+                g_warning("Ignoring incomplete account in configuration");
+                melange_account_free(account);
             }
-            g_free(id);
-            g_free(preset);
-            g_free(service_name);
-            g_free(service_url);
-            g_free(icon_url);
-            g_free(user_agent);
         } else {
             g_warning("Ignoring unknown configuration block \"%s\"", block->type);
         }
@@ -243,7 +217,8 @@ kv_lines:
     }
     ;
 
-key_value : T_IDENTIFIER T_STRING
+key_value:
+    T_IDENTIFIER T_STRING
     {
         $$ = key_value_pair_new($1, $2);
     }

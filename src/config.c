@@ -2,19 +2,52 @@
 #include <stdio.h>
 #include <errno.h>
 
+
+typedef struct AccountIteratorPointers {
+    MelangeAccountFunc func;
+    gpointer user_data;
+} AccountIteratorPointers;
+
+
 extern FILE *melange_config_parser_in;
 extern MelangeConfig *melange_config_parser_result;
 int melange_config_parser_parse(void);
 
 
+MelangeAccount *
+melange_account_new_preset(char *id, char *preset) {
+    MelangeAccount account = {
+        .id = id,
+        .preset = preset,
+    };
+    return g_memdup(&account, sizeof account);
+}
+
+
+MelangeAccount *
+melange_account_new_custom(char *id, char *service_name, char *service_url, char *icon_url,
+                           char *user_agent)
+{
+    MelangeAccount account = {
+        .id = id,
+        .service_name = service_name,
+        .service_url = service_url,
+        .icon_url = icon_url,
+        .user_agent = user_agent,
+    };
+    return g_memdup(&account, sizeof account);
+}
+
+
 void
-melange_clear_account(MelangeAccount *account) {
+melange_account_free(MelangeAccount *account) {
     g_free(account->id);
     g_free(account->preset);
     g_free(account->service_name);
     g_free(account->service_url);
     g_free(account->icon_url);
     g_free(account->user_agent);
+    g_free(account);
 }
 
 
@@ -24,9 +57,9 @@ melange_config_new(void) {
         .dark_theme = FALSE,
         .client_side_decorations = MELANGE_CSD_AUTO,
         .auto_hide_sidebar = FALSE,
-        .accounts = g_array_new(FALSE, FALSE, sizeof(MelangeAccount)),
+        .accounts = g_hash_table_new_full(g_str_hash, g_str_equal, NULL,
+                                          (GDestroyNotify) melange_account_free),
     };
-    g_array_set_clear_func(template.accounts, (GDestroyNotify) melange_clear_account);
     return g_memdup(&template, sizeof template);
 }
 
@@ -57,33 +90,67 @@ melange_config_new_from_file(const char *file_name) {
 
 
 void melange_config_free(MelangeConfig *config) {
-    g_array_free(config->accounts, TRUE);
+    g_hash_table_destroy(config->accounts);
     g_free(config);
 }
 
 
-void
-melange_config_add_preset_account(MelangeConfig *config, char *id, char *preset) {
-    MelangeAccount account = {
-        .id = id,
-        .preset = preset,
-    };
-    g_array_append_val(config->accounts, account);
+gboolean
+melange_config_add_account(MelangeConfig *config, MelangeAccount *account) {
+    return g_hash_table_insert(config->accounts, account->id, account);
+}
+
+
+MelangeAccount *
+melange_config_lookup_account(MelangeConfig *config, const char *id) {
+    return g_hash_table_lookup(config->accounts, id);
+}
+
+
+static void
+melange_config_hash_table_iterator(gpointer key, gpointer value, gpointer user_data) {
+    (void) key;
+
+    AccountIteratorPointers *pointers = user_data;
+    pointers->func(value, pointers->user_data);
 }
 
 
 void
-melange_config_add_custom_account(MelangeConfig *config, char *id, char *service_name,
-                                  char *service_url, char *icon_url, char *user_agent)
+melange_config_for_each_account(MelangeConfig *config, MelangeAccountFunc func,
+                                gpointer user_data)
 {
-    MelangeAccount account = {
-        .id = id,
-        .service_name = service_name,
-        .service_url = service_url,
-        .icon_url = icon_url,
-        .user_agent = user_agent,
-    };
-    g_array_append_val(config->accounts, account);
+    AccountIteratorPointers pointers = { func, user_data };
+    g_hash_table_foreach(config->accounts, melange_config_hash_table_iterator, &pointers);
+}
+
+
+static void
+melange_config_write_account(MelangeAccount *account, FILE *file) {
+    fprintf(file,
+            "\naccount {\n"
+                    "    id            \"%s\"\n",
+            account->id
+    );
+    if (account->preset) {
+        fprintf(file,
+                "    preset        \"%s\"\n"
+                        "}\n",
+                account->preset
+        );
+    } else {
+        fprintf(file,
+                "    service-name  \"%s\"\n"
+                        "    service-url   \"%s\"\n"
+                        "    icon-url      \"%s\"\n"
+                        "    user-agent    \"%s\"\n"
+                        "}\n",
+                account->service_name,
+                account->service_url,
+                account->icon_url,
+                account->user_agent
+        );
+    }
 }
 
 
@@ -117,33 +184,7 @@ melange_config_write_to_file(MelangeConfig *config, const char *file_name) {
             bool_string[config->auto_hide_sidebar]
     );
 
-    for (size_t i = 0; i < config->accounts->len; ++i) {
-        MelangeAccount *account = &g_array_index(config->accounts, MelangeAccount, i);
-        fprintf(file,
-                "\naccount {\n"
-                "    id            \"%s\"\n",
-                account->id
-        );
-        if (account->preset) {
-            fprintf(file,
-                    "    preset        \"%s\"\n"
-                    "}\n",
-                    account->preset
-            );
-        } else {
-            fprintf(file,
-                    "    service-name  \"%s\"\n"
-                    "    service-url   \"%s\"\n"
-                    "    icon-url      \"%s\"\n"
-                    "    user-agent    \"%s\"\n"
-                    "}\n",
-                    account->service_name,
-                    account->service_url,
-                    account->icon_url,
-                    account->user_agent
-            );
-        }
-    }
-
+    melange_config_for_each_account(config, (MelangeAccountFunc) melange_config_write_account,
+                                    file);
     fclose(file);
 }

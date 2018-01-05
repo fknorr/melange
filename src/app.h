@@ -1,6 +1,7 @@
 #ifndef MELANGE_APP_H
 #define MELANGE_APP_H
 
+#include "config.h"
 #include <gtk/gtk.h>
 #include <webkit2/webkit2.h>
 
@@ -20,6 +21,11 @@ GType melange_app_get_type(void);
 WebKitWebContext *melange_app_get_web_context(MelangeApp *app);
 
 GdkPixbuf *melange_app_request_icon(MelangeApp *app, const char *hostname);
+
+gboolean melange_app_add_account(MelangeApp *app, MelangeAccount *account);
+
+void melange_app_iterate_accounts(MelangeApp *app, MelangeAccountConstFunc func,
+                                  gpointer user_data);
 
 
 #endif // MELANGE_APP_H

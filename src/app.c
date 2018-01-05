@@ -248,6 +248,23 @@ melange_app_request_icon(MelangeApp *app, const char *hostname) {
 }
 
 
+gboolean
+melange_app_add_account(MelangeApp *app, MelangeAccount *account) {
+    if (melange_config_add_account(app->config, account)) {
+        melange_config_write_to_file(app->config, app->config_file_name);
+        return TRUE;
+    } else {
+        return FALSE;
+    }
+}
+
+
+void
+melange_app_iterate_accounts(MelangeApp *app, MelangeAccountConstFunc func, gpointer user_data) {
+    melange_config_for_each_account(app->config, (MelangeAccountFunc) func, user_data);
+}
+
+
 static void
 melange_app_startup(GApplication *g_app) {
     G_APPLICATION_CLASS(melange_app_parent_class)->startup(g_app);
