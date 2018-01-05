@@ -66,3 +66,6 @@ target_link_libraries(melange
 set_target_properties(melange PROPERTIES LINK_FLAGS
     -rdynamic
 )
+
+install(TARGETS melange RUNTIME DESTINATION bin)
+install(DIRECTORY res/ DESTINATION share/melange)
