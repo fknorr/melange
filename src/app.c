@@ -266,9 +266,14 @@ melange_app_startup(GApplication *g_app) {
 
     g_object_unref(builder);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
     GdkPixbuf *icon = gdk_pixbuf_new_from_file("res/icons/melange.svg", NULL);
     gtk_status_icon_set_from_pixbuf(app->status_icon, icon);
     gtk_status_icon_set_visible(app->status_icon, TRUE);
+
+#pragma GCC diagnostic pop
 
     WebKitWebsiteDataManager *data_manager = webkit_website_data_manager_new(
             "base-data-directory", "/tmp/melange/data",

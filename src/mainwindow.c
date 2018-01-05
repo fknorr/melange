@@ -223,7 +223,7 @@ melange_main_window_create_switcher_button(GdkPixbuf *pixbuf, int padding, GtkWi
     int padded_size = 32 - 2 * padding;
 
     GtkWidget *image = gtk_image_new_from_pixbuf(pixbuf);
-    gtk_image_set_pixel_size(image, padded_size);
+    gtk_image_set_pixel_size(GTK_IMAGE(image), padded_size);
     gtk_widget_set_margin_top(image, padding);
     gtk_widget_set_margin_bottom(image, padding);
     gtk_widget_set_margin_start(image, padding);
@@ -299,6 +299,8 @@ melange_main_window_navigate_back(MelangeMainWindow *win) {
 
 GLADE_EVENT_HANDLER gboolean
 melange_main_window_button_press_event(GtkWidget *widget, GdkEvent *event, MelangeMainWindow *win) {
+    (void) widget;
+
     switch (event->button.button){
         case 8: // Mouse "back" button
             return melange_main_window_navigate_back(win);
