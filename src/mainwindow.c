@@ -20,6 +20,7 @@ struct MelangeMainWindow
     GtkWidget *view_stack;
     GtkWidget *switcher_box;
     GtkWidget *menu_box;
+    GtkWidget *service_grid;
 
     GArray *account_views;
 
@@ -363,7 +364,13 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
     if (!pixbuf) {
         pixbuf = gdk_pixbuf_new_from_file_at_size("res/icons/light/messenger.svg", 32, 32, NULL);
     }
+
     GtkWidget *switcher_button = melange_main_window_create_switcher_button(pixbuf, 0, web_view);
+    if (account->preset) {
+        g_object_set_qdata(G_OBJECT(switcher_button), g_quark_from_static_string("preset"),
+                           (gpointer) account->preset);
+    }
+
     gtk_container_add(GTK_CONTAINER(win->switcher_box), switcher_button);
     gtk_widget_show_all(switcher_button);
 
@@ -429,6 +436,35 @@ melange_main_window_create_service_add_button(MelangeMainWindow *win, const Mela
 
 
 static void
+melange_main_window_icon_available(MelangeApp *app, const char *preset, GdkPixbuf *pixbuf,
+                                   MelangeMainWindow *win) {
+    (void) app;
+
+    for (GList *list = gtk_container_get_children(GTK_CONTAINER(win->service_grid)); list;
+            list = list->next){
+        GtkContainer *button = GTK_CONTAINER(list->data);
+        const char *button_preset = g_object_get_qdata(
+                G_OBJECT(button), g_quark_from_static_string("preset"));
+        if (button_preset && g_str_equal(button_preset, preset)) {
+            GtkContainer *box = GTK_CONTAINER(gtk_container_get_children(button)->data);
+            GtkImage *image = GTK_IMAGE(gtk_container_get_children(box)->data);
+            gtk_image_set_from_pixbuf(image, pixbuf);
+        }
+    }
+
+    for (GList *list = gtk_container_get_children(GTK_CONTAINER(win->switcher_box)); list;
+         list = list->next){
+        GtkContainer *button = GTK_CONTAINER(list->data);
+        const char *button_preset = g_object_get_qdata(
+                G_OBJECT(button), g_quark_from_static_string("preset"));
+        if (button_preset && g_str_equal(button_preset, preset)) {
+            gtk_image_set_from_pixbuf(GTK_IMAGE(gtk_button_get_image(button)), pixbuf);
+        }
+    }
+}
+
+
+static void
 melange_main_window_constructed(GObject *obj) {
     G_OBJECT_CLASS(melange_main_window_parent_class)->constructed(obj);
 
@@ -456,7 +492,7 @@ melange_main_window_constructed(GObject *obj) {
     win->account_details_view = GTK_WIDGET(gtk_builder_get_object(builder, "account-details-view"));
     gtk_container_add(GTK_CONTAINER(win->view_stack), win->account_details_view);
 
-    GtkWidget *service_grid = GTK_WIDGET(gtk_builder_get_object(builder, "service-grid"));
+    win->service_grid = GTK_WIDGET(gtk_builder_get_object(builder, "service-grid"));
     for (size_t i = 0; i <= melange_n_account_presets; ++i) {
         GtkWidget *button;
         if (i < melange_n_account_presets) {
@@ -467,7 +503,7 @@ melange_main_window_constructed(GObject *obj) {
             g_signal_connect(button, "clicked", G_CALLBACK(melange_main_window_switch_to_view),
                              win->account_details_view);
         }
-        gtk_grid_attach(GTK_GRID(service_grid), button, (gint) i % 3, (gint) i / 3, 1, 1);
+        gtk_grid_attach(GTK_GRID(win->service_grid), button, (gint) i % 3, (gint) i / 3, 1, 1);
     }
 
     win->settings_view = GTK_WIDGET(gtk_builder_get_object(builder, "settings-view"));
@@ -538,9 +574,9 @@ melange_main_window_constructed(GObject *obj) {
                      melange_main_window_create_utility_switcher_button("add", win->add_view),
                      FALSE, FALSE, 0);
 
-
     g_signal_connect(win, "button-press-event", G_CALLBACK(melange_main_window_button_press_event), win);
     g_signal_connect(win, "key-press-event", G_CALLBACK(melange_main_window_key_press_event), win);
+    g_signal_connect(win->app, "icon-available", G_CALLBACK(melange_main_window_icon_available), win);
 
     gtk_application_window_set_show_menubar(GTK_APPLICATION_WINDOW(win), FALSE);
 }

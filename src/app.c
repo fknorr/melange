@@ -191,6 +191,7 @@ melange_app_icon_download_finished(WebKitDownload *download, MelangeAppIconDownl
     GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(file_name, 32, 32, &error);
     if (pixbuf) {
         g_hash_table_insert(context->app->icon_table, (gpointer) context->preset->preset, pixbuf);
+        g_signal_emit_by_name(context->app, "icon-available", context->preset->preset, pixbuf);
     } else {
         g_warning("Unable to load favicon file %s: %s", file_name, error->message);
         g_error_free(error);
@@ -372,6 +373,9 @@ melange_app_class_init(MelangeAppClass *cls) {
             "auto", property_flags);
 
     g_object_class_install_properties(G_OBJECT_CLASS(cls), MELANGE_APP_N_PROPS, property_specs);
+
+    g_signal_new("icon-available", MELANGE_TYPE_APP, G_SIGNAL_RUN_LAST, 0, NULL, NULL, NULL,
+                 G_TYPE_NONE, 2, G_TYPE_STRING, GDK_TYPE_PIXBUF);
 }
 
 
