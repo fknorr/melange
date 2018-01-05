@@ -27,6 +27,20 @@ const MelangeAccount melange_account_presets[] = {
         .icon_url = "https://upload.wikimedia.org/wikipedia/commons/e/ec/Skype-icon-new.png",
         .user_agent = DEFAULT_USER_AGENT,
     },
+    {
+        .preset = "facebook",
+        .service_name = "Facebook",
+        .service_url = "https://www.messenger.com",
+        .icon_url = "https://static.xx.fbcdn.net/rsrc.php/yl/r/H3nktOa7ZMg.ico",
+        .user_agent = DEFAULT_USER_AGENT,
+    },
+    {
+        .preset = "icq",
+        .service_name = "ICQ",
+        .service_url = "https://web.icq.com",
+        .icon_url = "https://web.icq.com/images/icq_logo_124x130.png",
+        .user_agent = DEFAULT_USER_AGENT,
+    },
 };
 
 
