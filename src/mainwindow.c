@@ -343,6 +343,10 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
 
     WebKitSettings *sett = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(web_view));
     webkit_settings_set_user_agent(sett, account->user_agent);
+    webkit_settings_set_enable_java(sett, FALSE);
+    webkit_settings_set_enable_offline_web_application_cache(sett, TRUE);
+    webkit_settings_set_enable_plugins(sett, FALSE);
+    webkit_settings_set_enable_developer_extras(sett, FALSE);
 
     webkit_web_view_load_uri(WEBKIT_WEB_VIEW(web_view), account->service_url);
     gtk_container_add(GTK_CONTAINER(win->view_stack), web_view);
