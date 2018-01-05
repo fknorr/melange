@@ -13,9 +13,8 @@ struct MelangeApp {
 
     WebKitWebContext *web_context;
 
-    gboolean dark_theme;
-    gboolean auto_hide_sidebar;
-    MelangeCsdMode client_side_decorations;
+    MelangeConfig *config;
+    char *config_file_name;
 
     char *icon_cache_dir;
     GHashTable *icon_table;
@@ -46,15 +45,15 @@ melange_app_get_property(GObject *object, guint property_id, GValue *value, GPar
     MelangeApp *app = MELANGE_APP(object);
     switch (property_id) {
         case MELANGE_APP_PROP_DARK_THEME:
-            g_value_set_boolean(value, app->dark_theme);
+            g_value_set_boolean(value, app->config->dark_theme);
             break;
 
         case MELANGE_APP_PROP_AUTO_HIDE_SIDEBAR:
-            g_value_set_boolean(value, app->auto_hide_sidebar);
+            g_value_set_boolean(value, app->config->auto_hide_sidebar);
             break;
 
         case MELANGE_APP_PROP_CLIENT_SIDE_DECORATIONS:
-            switch (app->client_side_decorations) {
+            switch (app->config->client_side_decorations) {
                 case MELANGE_CSD_OFF: g_value_set_string(value, "off"); break;
                 case MELANGE_CSD_ON: g_value_set_string(value, "on"); break;
                 case MELANGE_CSD_AUTO: g_value_set_string(value, "auto"); break;
@@ -74,23 +73,23 @@ melange_app_set_property(GObject *object, guint property_id, const GValue *value
     MelangeApp *app = MELANGE_APP(object);
     switch (property_id) {
         case MELANGE_APP_PROP_DARK_THEME:
-            app->dark_theme = g_value_get_boolean(value);
+            app->config->dark_theme = g_value_get_boolean(value);
             g_object_set(gtk_settings_get_default(), "gtk-application-prefer-dark-theme",
-                    app->dark_theme, NULL);
+                    app->config->dark_theme, NULL);
             break;
 
         case MELANGE_APP_PROP_AUTO_HIDE_SIDEBAR:
-            app->auto_hide_sidebar = g_value_get_boolean(value);
+            app->config->auto_hide_sidebar = g_value_get_boolean(value);
             break;
 
         case MELANGE_APP_PROP_CLIENT_SIDE_DECORATIONS: {
             const char *str_value = g_value_get_string(value);
             if (g_str_equal(str_value, "off")) {
-                app->client_side_decorations = MELANGE_CSD_OFF;
+                app->config->client_side_decorations = MELANGE_CSD_OFF;
             } else if (g_str_equal(str_value, "on")) {
-                app->client_side_decorations = MELANGE_CSD_ON;
+                app->config->client_side_decorations = MELANGE_CSD_ON;
             } else if (g_str_equal(str_value, "auto")) {
-                app->client_side_decorations = MELANGE_CSD_AUTO;
+                app->config->client_side_decorations = MELANGE_CSD_AUTO;
             } else {
                 g_warning("Invalid value for property client-side-decorations: %s", str_value);
             }
@@ -99,7 +98,10 @@ melange_app_set_property(GObject *object, guint property_id, const GValue *value
 
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
+            return;
     }
+
+    melange_config_write_to_file(app->config, app->config_file_name);
 }
 
 
@@ -252,6 +254,11 @@ melange_app_startup(GApplication *g_app) {
 
     MelangeApp *app = MELANGE_APP(g_app);
 
+    app->config = melange_config_new_from_file(app->config_file_name);
+    if (!app->config) {
+        app->config = melange_config_new();
+    }
+
     GtkBuilder *builder = gtk_builder_new_from_file("res/ui/app.glade");
     gtk_builder_connect_signals(builder, app);
 
@@ -324,6 +331,7 @@ melange_app_finalize(GObject *g_app) {
     MelangeApp *app = MELANGE_APP(g_app);
     g_free(app->icon_cache_dir);
     g_hash_table_destroy(app->icon_table);
+    g_free(app->config_file_name);
 
     G_OBJECT_CLASS(melange_app_parent_class)->finalize(g_app);
 }
@@ -333,6 +341,7 @@ static void
 melange_app_init(MelangeApp *app) {
     app->icon_cache_dir = g_strdup_printf("%s/melange/icon-cache", g_get_user_cache_dir());
     app->icon_table = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, g_object_unref);
+    app->config_file_name = g_strdup_printf("%s/melange/config", g_get_user_config_dir());
 }
 
 

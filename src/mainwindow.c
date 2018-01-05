@@ -448,7 +448,7 @@ melange_main_window_constructed(GObject *obj) {
     const char* csd_option;
     g_object_get(win->app, "client-side-decorations", &csd_option, NULL);
 
-    gboolean enable_csd = TRUE;
+    gboolean enable_csd = FALSE;
     if (g_str_equal(csd_option, "on")) {
         enable_csd = TRUE;
     } else if (g_str_equal(csd_option, "auto")) {
@@ -478,11 +478,6 @@ melange_main_window_constructed(GObject *obj) {
         gtk_container_add(GTK_CONTAINER(win->menu_box),
                           melange_main_window_create_utility_switcher_button("settings", win->settings_view));
     }
-
-    GdkEventMask events;
-    g_object_get(win, "events", &events, NULL);
-    printf("events %x\n", events);
-    g_object_set(win, "events", events | GDK_BUTTON_PRESS_MASK, NULL);
 
     g_signal_connect(win, "button-press-event", G_CALLBACK(melange_main_window_button_press_event), win);
     g_signal_connect(win, "key-press-event", G_CALLBACK(melange_main_window_key_press_event), win);
