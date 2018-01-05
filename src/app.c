@@ -1,13 +1,8 @@
 #include "app.h"
 #include "util.h"
+#include "config.h"
 #include "mainwindow.h"
 
-
-typedef enum MelangeCsdMode {
-    MELANGE_CSD_OFF,
-    MELANGE_CSD_ON,
-    MELANGE_CSD_AUTO,
-} MelangeCsdMode;
 
 struct MelangeApp {
     GtkApplication parent_instance;
@@ -221,7 +216,7 @@ melange_app_start_updating_icons(MelangeApp *app) {
         g_free(file_name);
 
         if (pixbuf) {
-            g_hash_table_insert(app->icon_table, hostname, pixbuf);
+            g_hash_table_insert(app->icon_table, (gpointer) hostname, pixbuf);
             continue;
         }
 
