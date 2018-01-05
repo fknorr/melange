@@ -14,6 +14,10 @@ find_package(WebKit2Gtk REQUIRED)
 find_package(FLEX REQUIRED)
 find_package(BISON REQUIRED)
 
+add_definitions(
+    -DMELANGE_INSTALL_PREFIX="${CMAKE_INSTALL_PREFIX}"
+)
+
 append_args(CMAKE_C_FLAGS
     -fmax-errors=5
     -Wall
@@ -49,9 +53,10 @@ add_executable(melange
     src/mainwindow.c src/mainwindow.h
     src/util.c src/util.h
     src/config.h src/config.c
+    src/presets.c src/presets.h
     ${FLEX_config_parser_OUTPUTS}
     ${BISON_config_parser_OUTPUTS}
-        src/presets.c src/presets.h)
+)
 
 target_link_libraries(melange
     ${GTK3_LIBRARIES}

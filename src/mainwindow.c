@@ -1,8 +1,6 @@
 #include "mainwindow.h"
-#include "app.h"
 #include "presets.h"
 #include "util.h"
-#include <math.h>
 
 
 struct MelangeMainWindow
@@ -21,8 +19,6 @@ struct MelangeMainWindow
     GtkWidget *switcher_box;
     GtkWidget *menu_box;
     GtkWidget *service_grid;
-
-    GArray *account_views;
 
     guint sidebar_timeout;
     const char* initial_csd_setting;
@@ -80,11 +76,13 @@ melange_main_window_web_view_notify_title(GObject *gobject, GParamSpec *pspec,
 
 static void
 melange_main_window_web_view_load_changed(WebKitWebView *web_view, WebKitLoadEvent load_event,
-        const char *preset) {
+        MelangeMainWindow *win) {
+    const char *preset = g_object_get_qdata(G_OBJECT(web_view),
+                                            g_quark_from_static_string("preset"));
     if (preset && load_event == WEBKIT_LOAD_FINISHED) {
-        char *override_js;
-        char *file_name = g_strdup_printf("res/js/%s.js", preset);
-        if (g_file_get_contents(file_name, &override_js, NULL, NULL)) {
+        char *file_name = g_strdup_printf("js/%s.js", preset);
+        char *override_js = melange_app_load_text_resource(win->app, file_name, TRUE);
+        if (override_js) {
             webkit_web_view_run_javascript(web_view, override_js, NULL, NULL, NULL);
             g_free(override_js);
         }
@@ -240,11 +238,13 @@ melange_main_window_create_switcher_button(GdkPixbuf *pixbuf, int padding, GtkWi
 
 
 static GtkWidget *
-melange_main_window_create_utility_switcher_button(const char* icon, GtkWidget *switch_to) {
+melange_main_window_create_utility_switcher_button(MelangeMainWindow *win, const char* icon,
+                                                   GtkWidget *switch_to) {
     int padded_size = 16;
 
-    char *file_name = g_strdup_printf("res/icons/light/%s.svg", icon);
-    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(file_name, padded_size, padded_size, NULL);
+    char *file_name = g_strdup_printf("icons/light/%s.svg", icon);
+    GdkPixbuf *pixbuf = melange_app_load_pixbuf_resource(win->app, file_name, padded_size,
+                                                  padded_size, FALSE);
     g_free(file_name);
 
     return melange_main_window_create_switcher_button(pixbuf, 8, switch_to);
@@ -339,8 +339,7 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
     g_signal_connect(web_view, "notify::title",
                      G_CALLBACK(melange_main_window_web_view_notify_title), win);
     g_signal_connect(web_view, "load-changed",
-                     G_CALLBACK(melange_main_window_web_view_load_changed),
-                     (gpointer) account->preset);
+                     G_CALLBACK(melange_main_window_web_view_load_changed), win);
 
     WebKitSettings *sett = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(web_view));
     webkit_settings_set_user_agent(sett, account->user_agent);
@@ -362,17 +361,20 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
         pixbuf = melange_app_request_icon(win->app, account->preset);
     }
     if (!pixbuf) {
-        pixbuf = gdk_pixbuf_new_from_file_at_size("res/icons/light/messenger.svg", 32, 32, NULL);
+        pixbuf = melange_app_load_pixbuf_resource(win->app, "icons/light/messenger.svg",
+                                                      32, 32, FALSE);
     }
 
     GtkWidget *switcher_button = melange_main_window_create_switcher_button(pixbuf, 0, web_view);
-    if (account->preset) {
-        g_object_set_qdata(G_OBJECT(switcher_button), g_quark_from_static_string("preset"),
-                           (gpointer) account->preset);
-    }
-
     gtk_container_add(GTK_CONTAINER(win->switcher_box), switcher_button);
     gtk_widget_show_all(switcher_button);
+
+    if (account->preset) {
+        GQuark quark = g_quark_from_static_string("preset");
+        gpointer pointer = (gpointer) account->preset;
+        g_object_set_qdata(G_OBJECT(web_view), quark, pointer);
+        g_object_set_qdata(G_OBJECT(switcher_button), quark, pointer);
+    }
 
     melange_main_window_switch_to_view(NULL, web_view);
 }
@@ -404,7 +406,8 @@ melange_main_window_create_service_add_button(MelangeMainWindow *win, const Mela
         pixbuf = melange_app_request_icon(win->app, preset->preset);
     }
     if (!pixbuf) {
-        pixbuf = gdk_pixbuf_new_from_file_at_size("res/icons/light/messenger.svg", 32, 32, NULL);
+        pixbuf = melange_app_load_pixbuf_resource(win->app, "icons/light/messenger.svg",
+                                                      32, 32, FALSE);
     }
 
     GtkWidget *image = gtk_image_new_from_pixbuf(pixbuf);
@@ -454,7 +457,7 @@ melange_main_window_icon_available(MelangeApp *app, const char *preset, GdkPixbu
 
     for (GList *list = gtk_container_get_children(GTK_CONTAINER(win->switcher_box)); list;
          list = list->next){
-        GtkContainer *button = GTK_CONTAINER(list->data);
+        GtkButton *button = GTK_BUTTON(list->data);
         const char *button_preset = g_object_get_qdata(
                 G_OBJECT(button), g_quark_from_static_string("preset"));
         if (button_preset && g_str_equal(button_preset, preset)) {
@@ -471,7 +474,7 @@ melange_main_window_constructed(GObject *obj) {
     MelangeMainWindow *win = MELANGE_MAIN_WINDOW(obj);
     g_return_if_fail(win->app);
 
-    GtkBuilder *builder = gtk_builder_new_from_file("res/ui/mainwindow.glade");
+    GtkBuilder *builder = melange_app_load_ui_resource(win->app, "ui/mainwindow.glade", FALSE);
     gtk_builder_connect_signals(builder, win);
 
     GtkWidget *layout = GTK_WIDGET(gtk_builder_get_object(builder, "layout"));
@@ -485,7 +488,7 @@ melange_main_window_constructed(GObject *obj) {
 
     GtkImage *sidebar_handle = GTK_IMAGE(gtk_builder_get_object(builder, "sidebar-handle"));
     gtk_image_set_from_pixbuf(sidebar_handle,
-            gdk_pixbuf_new_from_file_at_size("res/icons/light/vdots.svg", 4, -1, NULL));
+            melange_app_load_pixbuf_resource(win->app, "icons/light/vdots.svg", 4, -1, FALSE));
 
     win->add_view = GTK_WIDGET(gtk_builder_get_object(builder, "add-view"));
     gtk_container_add(GTK_CONTAINER(win->view_stack), win->add_view);
@@ -519,11 +522,13 @@ melange_main_window_constructed(GObject *obj) {
     g_object_unref(builder);
 
     GtkCssProvider *css_provider = gtk_css_provider_new();
-    if (!gtk_css_provider_load_from_path(css_provider, "res/ui/mainwindow.css", NULL)) {
+    char *css_path = melange_app_get_resource_path(win->app, "ui/mainwindow.css");
+    if (!gtk_css_provider_load_from_path(css_provider, css_path, NULL)) {
         g_warning("Unable to load CSS file");
     }
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
             GTK_STYLE_PROVIDER(css_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_free(css_path);
 
     gboolean dark_theme;
     g_object_get(win->app, "dark-theme", &dark_theme, NULL);
@@ -558,20 +563,26 @@ melange_main_window_constructed(GObject *obj) {
         gtk_header_bar_set_show_close_button(GTK_HEADER_BAR(header_bar), TRUE);
         gtk_window_set_titlebar(GTK_WINDOW(win), header_bar);
         gboolean header_bar_dark = melange_util_has_dark_background(header_bar);
-        GtkWidget *image = gtk_image_new_from_pixbuf(gdk_pixbuf_new_from_file_at_size(
-                header_bar_dark ? "res/icons/dark/settings.svg" : "res/icons/light/settings.svg", 16, 16, NULL));
+
+        GtkWidget *image = gtk_image_new_from_pixbuf(melange_app_load_pixbuf_resource(win->app,
+                header_bar_dark ? "icons/dark/settings.svg" : "icons/light/settings.svg",
+                16, 16, FALSE));
+
         GtkWidget *switcher = GTK_WIDGET(gtk_tool_button_new(image, "Preferences"));
-        g_signal_connect(switcher, "clicked", G_CALLBACK(melange_main_window_switch_to_view), win->settings_view);
+        g_signal_connect(switcher, "clicked", G_CALLBACK(melange_main_window_switch_to_view),
+                         win->settings_view);
         gtk_header_bar_pack_end(GTK_HEADER_BAR(header_bar), switcher);
     } else {
         gtk_container_add(GTK_CONTAINER(win->menu_box),
-                          melange_main_window_create_utility_switcher_button("settings", win->settings_view));
+                  melange_main_window_create_utility_switcher_button(win,
+                          "settings", win->settings_view));
     }
 
-    melange_app_iterate_accounts(win->app, (MelangeAccountConstFunc) melange_main_window_add_account_view, win);
+    melange_app_iterate_accounts(
+            win->app, (MelangeAccountConstFunc) melange_main_window_add_account_view, win);
 
     gtk_box_pack_end(GTK_BOX(win->switcher_box),
-                     melange_main_window_create_utility_switcher_button("add", win->add_view),
+                     melange_main_window_create_utility_switcher_button(win, "add", win->add_view),
                      FALSE, FALSE, 0);
 
     g_signal_connect(win, "button-press-event", G_CALLBACK(melange_main_window_button_press_event), win);

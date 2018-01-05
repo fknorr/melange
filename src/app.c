@@ -3,9 +3,14 @@
 #include "presets.h"
 #include "mainwindow.h"
 
+#include <string.h>
+#include <errno.h>
+
 
 struct MelangeApp {
     GtkApplication parent_instance;
+
+    const char *resource_base_path;
 
     GtkStatusIcon *status_icon;
     GtkWidget *status_menu;
@@ -26,6 +31,7 @@ enum {
     MELANGE_APP_PROP_DARK_THEME = 1,
     MELANGE_APP_PROP_CLIENT_SIDE_DECORATIONS,
     MELANGE_APP_PROP_AUTO_HIDE_SIDEBAR,
+    MELANGE_APP_PROP_EXECUTABLE_FILE,
     MELANGE_APP_N_PROPS
 };
 
@@ -94,6 +100,35 @@ melange_app_set_property(GObject *object, guint property_id, const GValue *value
                 g_warning("Invalid value for property client-side-decorations: %s", str_value);
             }
             break;
+        }
+
+        case MELANGE_APP_PROP_EXECUTABLE_FILE: {
+            const char *executable = g_value_get_string(value);
+            if (strncmp(executable, MELANGE_INSTALL_PREFIX, strlen(MELANGE_INSTALL_PREFIX)) == 0) {
+                app->resource_base_path = g_build_path(G_DIR_SEPARATOR_S, MELANGE_INSTALL_PREFIX,
+                                                       "share/melange", NULL);
+            } else {
+                char *path = g_malloc(strlen(executable) + 4);
+                strcpy(path, executable);
+                while (TRUE) {
+                    char *separator = strrchr(path, G_DIR_SEPARATOR);
+                    if (!separator) {
+                        g_warning("Could not find resource base path, tried every parent of %s",
+                                  executable);
+                        g_free(path);
+                        return;
+                    }
+                    strcpy(separator, "/res");
+                    if (g_file_test(path, G_FILE_TEST_IS_DIR)) {
+                        g_info("App does not seem to be installed. Using resource base path %s",
+                                path);
+                        app->resource_base_path = path;
+                        break;
+                    }
+                    *separator = '\0';
+                }
+            }
+            return;
         }
 
         default:
@@ -262,6 +297,51 @@ melange_app_iterate_accounts(MelangeApp *app, MelangeAccountConstFunc func, gpoi
 }
 
 
+char *
+melange_app_get_resource_path(MelangeApp *app, const char *resource) {
+    return g_build_path(G_DIR_SEPARATOR_S, app->resource_base_path, resource, NULL);
+}
+
+
+GdkPixbuf *
+melange_app_load_pixbuf_resource(MelangeApp *app, const char *resource, gint width, gint height,
+                                gboolean allow_failure) {
+    GError *error = NULL;
+    char *path = melange_app_get_resource_path(app, resource);
+    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(path, width, height, &error);
+    if (!pixbuf && !allow_failure) {
+        g_error("Unable to load pixbuf resource from %s: %s", path, error->message);
+    }
+    g_free(path);
+    return pixbuf;
+}
+
+
+GtkBuilder *
+melange_app_load_ui_resource(MelangeApp *app, const char *resource, gboolean allow_failure) {
+    char *path = melange_app_get_resource_path(app, resource);
+    GtkBuilder *ui = gtk_builder_new_from_file(path);
+    if (!ui && !allow_failure) {
+        g_error("Unable to load ui resource from %s: %s", path, g_strerror(errno));
+    }
+    g_free(path);
+    return ui;
+}
+
+
+char *
+melange_app_load_text_resource(MelangeApp *app, const char *resource, gboolean allow_failure) {
+    GError *error = NULL;
+    char *path = melange_app_get_resource_path(app, resource);
+    char *text = NULL;
+    if (!g_file_get_contents(path, &text, NULL, &error) && !allow_failure) {
+        g_error("Unable to load text resource from %s: %s", path, error->message);
+    }
+    g_free(path);
+    return text;
+}
+
+
 static void
 melange_app_startup(GApplication *g_app) {
     G_APPLICATION_CLASS(melange_app_parent_class)->startup(g_app);
@@ -273,7 +353,7 @@ melange_app_startup(GApplication *g_app) {
         app->config = melange_config_new();
     }
 
-    GtkBuilder *builder = gtk_builder_new_from_file("res/ui/app.glade");
+    GtkBuilder *builder = melange_app_load_ui_resource(app, "ui/app.glade", FALSE);
     gtk_builder_connect_signals(builder, app);
 
     GMenu *app_menu = g_menu_new();
@@ -290,7 +370,7 @@ melange_app_startup(GApplication *g_app) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
-    GdkPixbuf *icon = gdk_pixbuf_new_from_file("res/icons/melange.svg", NULL);
+    GdkPixbuf *icon = melange_app_load_pixbuf_resource(app, "icons/melange.svg", 32, 32, FALSE);
     gtk_status_icon_set_from_pixbuf(app->status_icon, icon);
     gtk_status_icon_set_visible(app->status_icon, TRUE);
 
@@ -371,6 +451,9 @@ melange_app_class_init(MelangeAppClass *cls) {
     property_specs[MELANGE_APP_PROP_CLIENT_SIDE_DECORATIONS] = g_param_spec_string(
             "client-side-decorations", "client-side-decorations", "client-side-decorations",
             "auto", property_flags);
+    property_specs[MELANGE_APP_PROP_EXECUTABLE_FILE] = g_param_spec_string("executable-file",
+            "executable-file", "executable-file", NULL, G_PARAM_CONSTRUCT_ONLY | G_PARAM_WRITABLE
+            | G_PARAM_STATIC_NAME | G_PARAM_STATIC_NICK | G_PARAM_STATIC_BLURB);
 
     g_object_class_install_properties(G_OBJECT_CLASS(cls), MELANGE_APP_N_PROPS, property_specs);
 
@@ -380,8 +463,9 @@ melange_app_class_init(MelangeAppClass *cls) {
 
 
 GApplication *
-melange_app_new(void) {
+melange_app_new(const char *executable_file) {
     return g_object_new(MELANGE_TYPE_APP,
+            "executable-file", executable_file,
             "application-id", "de.inforge.melange",
             "register-session", TRUE,
             NULL);

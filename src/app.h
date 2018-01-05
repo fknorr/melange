@@ -14,7 +14,7 @@ typedef struct MelangeApp MelangeApp;
 #define MELANGE_IS_APP(inst) (G_TYPE_CHECK_INSTANCE_TYPE ((inst), MELANGE_TYPE_APP))
 
 
-GApplication *melange_app_new(void);
+GApplication *melange_app_new(const char *executable_file);
 
 GType melange_app_get_type(void);
 
@@ -26,6 +26,17 @@ gboolean melange_app_add_account(MelangeApp *app, MelangeAccount *account);
 
 void melange_app_iterate_accounts(MelangeApp *app, MelangeAccountConstFunc func,
                                   gpointer user_data);
+
+char *melange_app_get_resource_path(MelangeApp *app, const char *resource);
+
+GdkPixbuf *melange_app_load_pixbuf_resource(MelangeApp *app, const char *resource,
+                                            gint width, gint height, gboolean allow_failuer);
+
+GtkBuilder *melange_app_load_ui_resource(MelangeApp *app, const char *resource,
+                                         gboolean allow_failuer);
+
+char *melange_app_load_text_resource(MelangeApp *app, const char *resource,
+                                     gboolean allow_failuer);
 
 
 #endif // MELANGE_APP_H
