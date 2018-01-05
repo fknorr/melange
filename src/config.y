@@ -138,14 +138,13 @@ config_file:
             }
         } else if (g_str_equal(block->type, "account")) {
             enum { UNKNOWN, KNOWN_PRESET, KNOWN_CUSTOM } type = UNKNOWN;
-            MelangeAccount *account = NULL;
             char *id = NULL, *preset = NULL, *service_name = NULL, *service_url = NULL,
                     *icon_url = NULL, *user_agent = NULL;
             gboolean skip = FALSE;
             for (size_t i = 0; i < block->items->len; ++i) {
                 KeyValuePair *kv = g_array_index(block->items, KeyValuePair *, i);
                 if (g_str_equal(kv->key, "id")) {
-                    move_ptr(&account->id, &kv->value);
+                    move_ptr(&id, &kv->value);
                 } else if (g_str_equal(kv->key, "preset")) {
                     if (type == KNOWN_CUSTOM) {
                         g_warning("Setting preset in custom account, skipping this account");
