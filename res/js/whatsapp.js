@@ -1,7 +1,7 @@
-var style = document.createElement('style');
+const style = document.createElement('style');
 style.type = 'text/css';
 style.appendChild(document.createTextNode(`
-    .app, .fUst5 {
+    .app {
         margin: 0 !important;
         width: 100% !important;
         height: 100% !important;

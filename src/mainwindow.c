@@ -79,15 +79,15 @@ melange_main_window_web_view_notify_title(GObject *gobject, GParamSpec *pspec,
 
 static void
 melange_main_window_web_view_load_changed(WebKitWebView *web_view, WebKitLoadEvent load_event,
-        gpointer user_data) {
-    (void) user_data;
-
-    if (load_event == WEBKIT_LOAD_FINISHED) {
+        const char *preset) {
+    if (preset && load_event == WEBKIT_LOAD_FINISHED) {
         char *override_js;
-        if (g_file_get_contents("res/js/whatsapp.js", &override_js, NULL, NULL)) {
+        char *file_name = g_strdup_printf("res/js/%s.js", preset);
+        if (g_file_get_contents(file_name, &override_js, NULL, NULL)) {
             webkit_web_view_run_javascript(web_view, override_js, NULL, NULL, NULL);
             g_free(override_js);
         }
+        g_free(file_name);
     }
 }
 
@@ -338,7 +338,8 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
     g_signal_connect(web_view, "notify::title",
                      G_CALLBACK(melange_main_window_web_view_notify_title), win);
     g_signal_connect(web_view, "load-changed",
-                     G_CALLBACK(melange_main_window_web_view_load_changed), win);
+                     G_CALLBACK(melange_main_window_web_view_load_changed),
+                     (gpointer) account->preset);
 
     WebKitSettings *sett = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(web_view));
     webkit_settings_set_user_agent(sett, account->user_agent);
