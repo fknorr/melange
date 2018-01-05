@@ -421,16 +421,18 @@ melange_main_window_constructed(GObject *obj) {
     gtk_container_add(GTK_CONTAINER(win->view_stack), win->account_details_view);
 
     GtkWidget *service_grid = GTK_WIDGET(gtk_builder_get_object(builder, "service-grid"));
-    for (size_t i = 0; i < melange_n_account_presets; ++i) {
-        GtkWidget *button = melange_main_window_create_service_add_button(
-                win, &melange_account_presets[i]);
-        gtk_container_add(GTK_CONTAINER(service_grid), button);
+    for (size_t i = 0; i <= melange_n_account_presets; ++i) {
+        GtkWidget *button;
+        if (i < melange_n_account_presets) {
+            button = melange_main_window_create_service_add_button(
+                    win, &melange_account_presets[i]);
+        } else {
+            button = melange_main_window_create_service_add_button(win, NULL);
+            g_signal_connect(button, "clicked", G_CALLBACK(melange_main_window_switch_to_view),
+                             win->account_details_view);
+        }
+        gtk_grid_attach(GTK_GRID(service_grid), button, (gint) i % 3, (gint) i / 3, 1, 1);
     }
-
-    GtkWidget *custom_service_button = melange_main_window_create_service_add_button(win, NULL);
-    g_signal_connect(custom_service_button, "clicked", G_CALLBACK(melange_main_window_switch_to_view),
-                     win->account_details_view);
-    gtk_container_add(GTK_CONTAINER(service_grid), custom_service_button);
 
     win->settings_view = GTK_WIDGET(gtk_builder_get_object(builder, "settings-view"));
     gtk_container_add(GTK_CONTAINER(win->view_stack), win->settings_view);
