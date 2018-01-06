@@ -50,12 +50,21 @@
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <child>
+      <object class="GtkMenuItem" id="about-item">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">About</property>
+        <property name="use_underline">True</property>
+        <signal name="activate" handler="melange_app_about_action_activate" swapped="yes"/>
+      </object>
+    </child>
+    <child>
       <object class="GtkMenuItem" id="quit-item">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="label" translatable="yes">Quit</property>
         <property name="use_underline">True</property>
-        <signal name="activate" handler="melange_app_status_menu_quit_item_activate" swapped="no"/>
+        <signal name="activate" handler="g_application_quit" swapped="yes"/>
       </object>
     </child>
   </object>

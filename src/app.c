@@ -180,14 +180,6 @@ melange_app_status_icon_activate(GtkStatusIcon *status_icon, MelangeApp *app) {
 }
 
 
-GLADE_EVENT_HANDLER void
-melange_app_status_menu_quit_item_activate(GtkMenuItem *menu_item, MelangeApp *app) {
-    (void) menu_item;
-
-    g_application_quit(G_APPLICATION(app));
-}
-
-
 GLADE_EVENT_HANDLER gboolean
 melange_app_status_icon_button_press_event(GtkStatusIcon *status_icon, GdkEvent *event,
         MelangeApp *app)
@@ -394,11 +386,8 @@ melange_app_show_message_notification(MelangeApp *app, const char *title, const 
 }
 
 
-static void
-melange_app_about_action_activate(GSimpleAction *simple, GVariant *parameter, MelangeApp *app) {
-    (void) simple;
-    (void) parameter;
-
+GLADE_EVENT_HANDLER void
+melange_app_about_action_activate(MelangeApp *app) {
     if (app->about_dialog) {
         gtk_window_present(GTK_WINDOW(app->about_dialog));
     }
@@ -419,16 +408,14 @@ melange_app_startup(GApplication *g_app) {
     GtkBuilder *builder = melange_app_load_ui_resource(app, "ui/app.glade", FALSE);
     gtk_builder_connect_signals(builder, app);
 
-    app->status_icon = GTK_STATUS_ICON(gtk_builder_get_object(builder, "status-icon"));
-    g_object_ref(app->status_icon);
-
-    app->status_menu = GTK_WIDGET(gtk_builder_get_object(builder, "status-menu"));
+    app->status_icon = g_object_ref(GTK_STATUS_ICON(gtk_builder_get_object(builder, "status-icon")));
+    app->status_menu = g_object_ref(GTK_WIDGET(gtk_builder_get_object(builder, "status-menu")));
     app->about_dialog = GTK_WIDGET(gtk_builder_get_object(builder, "about-dialog"));
 
     g_object_unref(builder);
 
     GSimpleAction *about_action = g_simple_action_new("about", NULL);
-    g_signal_connect(about_action, "activate", G_CALLBACK(melange_app_about_action_activate), app);
+    g_signal_connect_swapped(about_action, "activate", G_CALLBACK(melange_app_about_action_activate), app);
     g_action_map_add_action(G_ACTION_MAP(app), G_ACTION(about_action));
 
     GSimpleAction *quit_action = g_simple_action_new("quit", NULL);
@@ -478,13 +465,6 @@ melange_app_startup(GApplication *g_app) {
             G_CALLBACK(melange_app_main_window_delete_event), NULL);
     gtk_widget_show_all(app->main_window);
     gtk_application_add_window(GTK_APPLICATION(app), GTK_WINDOW(app->main_window));
-
-    app->status_menu = gtk_menu_new();
-    GtkWidget *menu_item = gtk_menu_item_new_with_label("Quit");
-    g_signal_connect_swapped(menu_item, "activate", G_CALLBACK(gtk_widget_destroy),
-            app->main_window);
-    gtk_menu_shell_append(GTK_MENU_SHELL(app->status_menu), menu_item);
-    gtk_widget_show_all(app->status_menu);
 }
 
 
