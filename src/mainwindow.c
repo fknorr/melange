@@ -2,6 +2,8 @@
 #include "presets.h"
 #include "util.h"
 
+#include <stdlib.h>
+
 
 struct MelangeMainWindow
 {
@@ -20,6 +22,7 @@ struct MelangeMainWindow
     GtkWidget *menu_box;
     GtkWidget *service_grid;
 
+    GRegex *new_message_regex;
     guint sidebar_timeout;
     const char* initial_csd_setting;
 };
@@ -66,11 +69,22 @@ melange_main_window_web_view_context_menu(WebKitWebView *web_view, WebKitContext
 
 
 static void
-melange_main_window_web_view_notify_title(GObject *gobject, GParamSpec *pspec,
+melange_main_window_web_view_notify_title(WebKitWebView *web_view, GParamSpec *pspec,
         MelangeMainWindow *win) {
-    (void) gobject;
     (void) pspec;
     (void) win;
+
+    int unread = 0;
+
+    GMatchInfo *match;
+    g_regex_match(win->new_message_regex, webkit_web_view_get_title(web_view), 0, &match);
+    if (g_match_info_matches(match)) {
+        unread = (int) strtol(g_match_info_fetch(match, 0), NULL, 10);
+    }
+
+    printf("title \"%s\", seeing %d unread\n", webkit_web_view_get_title(web_view), unread);
+
+    g_object_set(win->app, "unread-messages", unread, NULL);
 }
 
 
@@ -202,6 +216,7 @@ melange_main_window_realize(GtkWidget *widget) {
 static void
 melange_main_window_init(MelangeMainWindow *win) {
     win->sidebar_timeout = 0;
+    win->new_message_regex = g_regex_new("[(\\s]*(\\d+)\\b", 0, 0, NULL);
 
     GdkGeometry hints = { .min_width = 800, .min_height = 600 };
     gtk_window_set_geometry_hints(GTK_WINDOW(win), NULL, &hints, GDK_HINT_MIN_SIZE);
@@ -597,6 +612,8 @@ static void
 melange_main_window_finalize(GObject *obj) {
     MelangeMainWindow *win = MELANGE_MAIN_WINDOW(obj);
     g_signal_handlers_disconnect_by_data(win->app, win);
+
+    g_regex_unref(win->new_message_regex);
 
     G_OBJECT_CLASS(melange_main_window_parent_class)->finalize(obj);
 }

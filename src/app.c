@@ -457,6 +457,12 @@ melange_app_finalize(GObject *g_app) {
     g_hash_table_destroy(app->icon_table);
     g_free(app->config_file_name);
 
+    for (int i = 0; i < 11; ++i) {
+        g_object_unref(app->notify_icons[i]);
+    }
+    g_free(app->notify_icons);
+
+    g_icon
     G_OBJECT_CLASS(melange_app_parent_class)->finalize(g_app);
 }
 
