@@ -431,8 +431,13 @@ melange_app_startup(GApplication *g_app) {
     g_signal_connect(about_action, "activate", G_CALLBACK(melange_app_about_action_activate), app);
     g_action_map_add_action(G_ACTION_MAP(app), G_ACTION(about_action));
 
+    GSimpleAction *quit_action = g_simple_action_new("quit", NULL);
+    g_signal_connect_swapped(quit_action, "activate", G_CALLBACK(g_application_quit), app);
+    g_action_map_add_action(G_ACTION_MAP(app), G_ACTION(quit_action));
+
     GMenu *app_menu = g_menu_new();
     g_menu_append(app_menu, "About", "app.about");
+    g_menu_append(app_menu, "Quit", "app.quit");
     gtk_application_set_app_menu(GTK_APPLICATION(app), G_MENU_MODEL(app_menu));
 
     app->notify_icons = g_malloc(11 * sizeof *app->notify_icons);
