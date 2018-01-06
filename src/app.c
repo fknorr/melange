@@ -5,7 +5,7 @@
 
 #include <string.h>
 #include <errno.h>
-#include <cairo.h>
+#include <libnotify/notify.h>
 
 
 struct MelangeApp {
@@ -369,6 +369,30 @@ melange_app_load_text_resource(MelangeApp *app, const char *resource, gboolean a
 }
 
 
+void
+melange_app_show_message_notification(MelangeApp *app, const char *title, const char *body,
+                                      const char *service)
+{
+    char *icon_path = NULL;
+    if (service) {
+        icon_path = g_strdup_printf("%s/%s.ico", app->icon_cache_dir, service);
+        if (!g_file_test(icon_path, G_FILE_TEST_IS_REGULAR)) {
+            g_free(icon_path);
+            icon_path = NULL;
+        }
+    }
+    if (!icon_path) {
+        icon_path = melange_app_get_resource_path(app, "icons/melange.svg");
+    }
+
+    NotifyNotification *notification = notify_notification_new(title, body, icon_path);
+    notify_notification_show(notification, NULL);
+    g_object_unref(notification);
+
+    g_free(icon_path);
+}
+
+
 static void
 melange_app_startup(GApplication *g_app) {
     G_APPLICATION_CLASS(melange_app_parent_class)->startup(g_app);
@@ -457,12 +481,13 @@ melange_app_finalize(GObject *g_app) {
     g_hash_table_destroy(app->icon_table);
     g_free(app->config_file_name);
 
-    for (int i = 0; i < 11; ++i) {
-        g_object_unref(app->notify_icons[i]);
+    if (app->notify_icons) {
+        for (int i = 0; i < 11; ++i) {
+            g_object_unref(app->notify_icons[i]);
+        }
+        g_free(app->notify_icons);
     }
-    g_free(app->notify_icons);
 
-    g_icon
     G_OBJECT_CLASS(melange_app_parent_class)->finalize(g_app);
 }
 

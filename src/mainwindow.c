@@ -82,7 +82,7 @@ melange_main_window_web_view_notify_title(WebKitWebView *web_view, GParamSpec *p
         unread = (int) strtol(g_match_info_fetch(match, 0), NULL, 10);
     }
 
-    printf("title \"%s\", seeing %d unread\n", webkit_web_view_get_title(web_view), unread);
+    g_debug("title \"%s\", seeing %d unread\n", webkit_web_view_get_title(web_view), unread);
 
     g_object_set(win->app, "unread-messages", unread, NULL);
 }
@@ -102,6 +102,19 @@ melange_main_window_web_view_load_changed(WebKitWebView *web_view, WebKitLoadEve
         }
         g_free(file_name);
     }
+}
+
+
+static gboolean
+melange_main_window_web_view_show_notification(WebKitWebView *web_view,
+        WebKitNotification *notification, MelangeMainWindow *win)
+{
+    const char *preset = g_object_get_qdata(G_OBJECT(web_view),
+                                            g_quark_from_static_string("preset"));
+    const char *title = webkit_notification_get_title(notification);
+    const char *body = webkit_notification_get_body(notification);
+    melange_app_show_message_notification(win->app, title, body, preset);
+    return TRUE;
 }
 
 
@@ -355,6 +368,8 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
                      G_CALLBACK(melange_main_window_web_view_notify_title), win);
     g_signal_connect(web_view, "load-changed",
                      G_CALLBACK(melange_main_window_web_view_load_changed), win);
+    g_signal_connect(web_view, "show-notification",
+                     G_CALLBACK(melange_main_window_web_view_show_notification), win);
 
     WebKitSettings *sett = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(web_view));
     webkit_settings_set_user_agent(sett, account->user_agent);

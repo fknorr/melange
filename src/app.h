@@ -38,5 +38,8 @@ GtkBuilder *melange_app_load_ui_resource(MelangeApp *app, const char *resource,
 char *melange_app_load_text_resource(MelangeApp *app, const char *resource,
                                      gboolean allow_failure);
 
+void melange_app_show_message_notification(MelangeApp *app, const char *title, const char *body,
+                                           const char *service);
+
 
 #endif // MELANGE_APP_H

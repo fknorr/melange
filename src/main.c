@@ -1,9 +1,12 @@
 #include "app.h"
 
+#include <libnotify/notify.h>
+
 
 int
 main(int argc, char **argv) {
     g_set_application_name("Melange");
+    notify_init("melange");
 
     char *executable_file;
     if (g_path_is_absolute(argv[0])) {
