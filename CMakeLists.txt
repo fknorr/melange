@@ -67,5 +67,9 @@ set_target_properties(melange PROPERTIES LINK_FLAGS
     -rdynamic
 )
 
+configure_file(src/melange.desktop.in melange.desktop)
+
 install(TARGETS melange RUNTIME DESTINATION bin)
 install(DIRECTORY res/ DESTINATION share/melange)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/melange.desktop DESTINATION share/applications)
+install(FILES res/icons/melange.svg DESTINATION share/icons/hicolor/scalable/apps)

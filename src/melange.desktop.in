@@ -1,0 +1,11 @@
+[Desktop Entry]
+Encoding=UTF-8
+Version=1.0
+Name=Melange
+GenericName=Web Messenger
+Comment=Desktop application for web messaging services
+Exec=${CMAKE_INSTALL_PREFIX}/bin/melange
+Icon=melange
+Type=Application
+Terminal=false
+Categories=Network;Messenger

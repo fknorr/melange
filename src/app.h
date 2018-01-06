@@ -30,13 +30,13 @@ void melange_app_iterate_accounts(MelangeApp *app, MelangeAccountConstFunc func,
 char *melange_app_get_resource_path(MelangeApp *app, const char *resource);
 
 GdkPixbuf *melange_app_load_pixbuf_resource(MelangeApp *app, const char *resource,
-                                            gint width, gint height, gboolean allow_failuer);
+                                            gint width, gint height, gboolean allow_failure);
 
 GtkBuilder *melange_app_load_ui_resource(MelangeApp *app, const char *resource,
-                                         gboolean allow_failuer);
+                                         gboolean allow_failure);
 
 char *melange_app_load_text_resource(MelangeApp *app, const char *resource,
-                                     gboolean allow_failuer);
+                                     gboolean allow_failure);
 
 
 #endif // MELANGE_APP_H
