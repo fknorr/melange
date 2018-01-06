@@ -1,7 +1,7 @@
 #ifndef MELANGE_CONFIG_H
 #define MELANGE_CONFIG_H
 
-#include <glib-2.0/glib.h>
+#include <glib.h>
 
 
 typedef enum MelangeCsdMode {
@@ -12,7 +12,7 @@ typedef enum MelangeCsdMode {
 
 typedef struct MelangeAccount {
     char *id;
-    const char *preset;
+    const struct MelangeAccount *preset;
     char *service_name;
     char *service_url;
     char *icon_url;
@@ -24,19 +24,27 @@ typedef struct MelangeConfig {
     MelangeCsdMode client_side_decorations;
     gboolean auto_hide_sidebar;
 
-    GHashTable *accounts;
+    GArray *accounts;
 } MelangeConfig;
 
 typedef void (*MelangeAccountFunc)(MelangeAccount *account, gpointer user_data);
 typedef void (*MelangeAccountConstFunc)(const MelangeAccount *account, gpointer user_data);
 
 
-MelangeAccount *melange_account_new_from_preset(char *id, const char *preset);
+MelangeAccount *melange_account_new_from_preset(char *id, const MelangeAccount *preset);
 
 MelangeAccount *melange_account_new(char *id, char *service_name, char *service_url,
                                     char *icon_url, char *user_agent);
 
 void melange_account_free(MelangeAccount *account);
+
+const char *melange_account_get_service_name(const MelangeAccount *account);
+
+const char *melange_account_get_service_url(const MelangeAccount *account);
+
+const char *melange_account_get_icon_url(const MelangeAccount *account);
+
+const char *melange_account_get_user_agent(const MelangeAccount *account);
 
 
 MelangeConfig *melange_config_new(void);

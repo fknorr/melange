@@ -223,7 +223,7 @@ melange_app_decide_icon_destination(WebKitDownload *download, gchar *suggested_f
     (void) suggested_filename;
 
     char *uri = g_strdup_printf("file://%s/%s.ico", context->app->icon_cache_dir,
-                                context->preset->preset);
+                                context->preset->id);
     webkit_download_set_destination(download, uri);
     g_free(uri);
 
@@ -248,13 +248,13 @@ melange_app_icon_download_finished(WebKitDownload *download, MelangeAppIconDownl
     if (context->failed) goto cleanup;
 
     char *file_name = g_strdup_printf("%s/%s.ico", context->app->icon_cache_dir,
-                                      context->preset->preset);
+                                      context->preset->id);
 
     GError *error = NULL;
     GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(file_name, 32, 32, &error);
     if (pixbuf) {
-        g_hash_table_insert(context->app->icon_table, (gpointer) context->preset->preset, pixbuf);
-        g_signal_emit_by_name(context->app, "icon-available", context->preset->preset, pixbuf);
+        g_hash_table_insert(context->app->icon_table, (gpointer) context->preset->id, pixbuf);
+        g_signal_emit_by_name(context->app, "icon-available", context->preset->id, pixbuf);
     } else {
         g_warning("Unable to load favicon file %s: %s", file_name, error->message);
         g_error_free(error);
@@ -274,12 +274,12 @@ melange_app_start_updating_icons(MelangeApp *app) {
     for (size_t i = 0; i < melange_n_account_presets; ++i) {
         const MelangeAccount *preset = &melange_account_presets[i];
 
-        char *file_name = g_strdup_printf("%s/%s.ico", app->icon_cache_dir, preset->preset);
+        char *file_name = g_strdup_printf("%s/%s.ico", app->icon_cache_dir, preset->id);
         GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(file_name, 32, 32, NULL);
         g_free(file_name);
 
         if (pixbuf) {
-            g_hash_table_insert(app->icon_table, (gpointer) preset->preset, pixbuf);
+            g_hash_table_insert(app->icon_table, (gpointer) preset->id, pixbuf);
             continue;
         }
 

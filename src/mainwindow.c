@@ -109,11 +109,15 @@ static gboolean
 melange_main_window_web_view_show_notification(WebKitWebView *web_view,
         WebKitNotification *notification, MelangeMainWindow *win)
 {
-    const char *preset = g_object_get_qdata(G_OBJECT(web_view),
-                                            g_quark_from_static_string("preset"));
+    MelangeAccount *account = g_object_get_qdata(
+            G_OBJECT(web_view), g_quark_from_static_string("account"));
+    g_assert(account);
+
     const char *title = webkit_notification_get_title(notification);
     const char *body = webkit_notification_get_body(notification);
-    melange_app_show_message_notification(win->app, title, body, preset);
+    const char *icon = account->preset ? account->preset->id : NULL;
+
+    melange_app_show_message_notification(win->app, title, body, icon);
     return TRUE;
 }
 
@@ -357,7 +361,7 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
 
     WebKitWebContext *web_context = webkit_web_context_new_with_website_data_manager(data_manager);
 
-    WebKitSecurityOrigin *origin = webkit_security_origin_new_for_uri(account->service_url);
+    WebKitSecurityOrigin *origin = webkit_security_origin_new_for_uri(melange_account_get_service_url(account));
     GList *allowed_origins = g_list_append(NULL, origin);
     webkit_web_context_initialize_notification_permissions(web_context, allowed_origins, NULL);
 
@@ -372,13 +376,13 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
                      G_CALLBACK(melange_main_window_web_view_show_notification), win);
 
     WebKitSettings *sett = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(web_view));
-    webkit_settings_set_user_agent(sett, account->user_agent);
+    webkit_settings_set_user_agent(sett, melange_account_get_user_agent(account));
     webkit_settings_set_enable_java(sett, FALSE);
     webkit_settings_set_enable_offline_web_application_cache(sett, TRUE);
     webkit_settings_set_enable_plugins(sett, FALSE);
     webkit_settings_set_enable_developer_extras(sett, FALSE);
 
-    webkit_web_view_load_uri(WEBKIT_WEB_VIEW(web_view), account->service_url);
+    webkit_web_view_load_uri(WEBKIT_WEB_VIEW(web_view), melange_account_get_service_url(account));
     gtk_container_add(GTK_CONTAINER(win->view_stack), web_view);
     gtk_widget_show_all(web_view);
 
@@ -388,7 +392,7 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
 
     GdkPixbuf *pixbuf = NULL;
     if (account->preset) {
-        pixbuf = melange_app_request_icon(win->app, account->preset);
+        pixbuf = melange_app_request_icon(win->app, account->preset->id);
     }
     if (!pixbuf) {
         pixbuf = melange_app_load_pixbuf_resource(win->app, "icons/light/messenger.svg",
@@ -399,12 +403,10 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
     gtk_container_add(GTK_CONTAINER(win->switcher_box), switcher_button);
     gtk_widget_show_all(switcher_button);
 
-    if (account->preset) {
-        GQuark quark = g_quark_from_static_string("preset");
-        gpointer pointer = (gpointer) account->preset;
-        g_object_set_qdata(G_OBJECT(web_view), quark, pointer);
-        g_object_set_qdata(G_OBJECT(switcher_button), quark, pointer);
-    }
+    GQuark quark = g_quark_from_static_string("account");
+    gpointer pointer = (gpointer) account;
+    g_object_set_qdata(G_OBJECT(web_view), quark, pointer);
+    g_object_set_qdata(G_OBJECT(switcher_button), quark, pointer);
 
     melange_main_window_switch_to_view(NULL, web_view);
 }
@@ -412,17 +414,17 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
 
 static void
 melange_main_window_add_service_button_clicked(GtkButton *button, MelangeMainWindow *win) {
-    const char *preset = g_object_get_qdata(
+    const MelangeAccount *preset = g_object_get_qdata(
             G_OBJECT(button), g_quark_from_static_string("preset"));
     g_return_if_fail(preset);
 
     int serial = 1;
-    char *id = g_strdup_printf("%s%d", preset, serial);
+    char *id = g_strdup_printf("%s%d", preset->id, serial);
 
     MelangeAccount *account = melange_account_new_from_preset(id, preset);
     while (!melange_app_add_account(win->app, account)) {
         g_free(account->id);
-        account->id = g_strdup_printf("%s%d", preset, ++serial);
+        account->id = g_strdup_printf("%s%d", preset->id, ++serial);
     }
 
     melange_main_window_add_account_view(account, win);
@@ -432,8 +434,8 @@ melange_main_window_add_service_button_clicked(GtkButton *button, MelangeMainWin
 static GtkWidget *
 melange_main_window_create_service_add_button(MelangeMainWindow *win, const MelangeAccount *preset) {
     GdkPixbuf *pixbuf = NULL;
-    if (preset && preset->preset) {
-        pixbuf = melange_app_request_icon(win->app, preset->preset);
+    if (preset) {
+        pixbuf = melange_app_request_icon(win->app, preset->id);
     }
     if (!pixbuf) {
         pixbuf = melange_app_load_pixbuf_resource(win->app, "icons/light/messenger.svg",
@@ -458,8 +460,7 @@ melange_main_window_create_service_add_button(MelangeMainWindow *win, const Mela
     gtk_container_add(GTK_CONTAINER(button), box);
 
     if (preset) {
-        g_object_set_qdata(G_OBJECT(button), g_quark_from_static_string("preset"),
-                           (gpointer) preset->preset);
+        g_object_set_qdata(G_OBJECT(button), g_quark_from_static_string("preset"), (gpointer) preset);
         g_signal_connect(button, "clicked",
                          G_CALLBACK(melange_main_window_add_service_button_clicked), win);
     }
@@ -488,9 +489,9 @@ melange_main_window_icon_available(MelangeApp *app, const char *preset, GdkPixbu
     for (GList *list = gtk_container_get_children(GTK_CONTAINER(win->switcher_box)); list;
          list = list->next){
         GtkButton *button = GTK_BUTTON(list->data);
-        const char *button_preset = g_object_get_qdata(
-                G_OBJECT(button), g_quark_from_static_string("preset"));
-        if (button_preset && g_str_equal(button_preset, preset)) {
+        MelangeAccount *account = g_object_get_qdata(
+                G_OBJECT(button), g_quark_from_static_string("account"));
+        if (account && account->preset && g_str_equal(account->preset->id, preset)) {
             gtk_image_set_from_pixbuf(GTK_IMAGE(gtk_button_get_image(button)), pixbuf);
         }
     }

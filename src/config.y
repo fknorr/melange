@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #include <src/config.h>
+#include <src/presets.h>
 
 #define MELANGE_CONFIG_PARSER_STYPE void *
 
@@ -137,64 +138,36 @@ config_file:
                 }
             }
         } else if (g_str_equal(block->type, "account")) {
-            enum { UNKNOWN, KNOWN_PRESET, KNOWN_CUSTOM } type = UNKNOWN;
-            char *id = NULL, *preset = NULL, *service_name = NULL, *service_url = NULL,
-                    *icon_url = NULL, *user_agent = NULL;
-            gboolean skip = FALSE;
+            MelangeAccount *account = g_malloc0(sizeof *account);
             for (size_t i = 0; i < block->items->len; ++i) {
                 KeyValuePair *kv = g_array_index(block->items, KeyValuePair *, i);
                 if (g_str_equal(kv->key, "id")) {
-                    move_ptr(&id, &kv->value);
+                    move_ptr(&account->id, &kv->value);
                 } else if (g_str_equal(kv->key, "preset")) {
-                    if (type == KNOWN_CUSTOM) {
-                        g_warning("Setting preset in custom account, skipping this account");
-                        skip = TRUE;
-                        break;
+                    const MelangeAccount *preset = melange_account_presets_lookup(kv->value);
+                    if (!preset) {
+                        g_warning("Unknown account preset \"%s\"", kv->value);
                     }
-                    type = KNOWN_PRESET;
-                    move_ptr(&preset, &kv->value);
-                } else if (g_str_equal(kv->key, "service-name") || g_str_equal(kv->key, "service-url")
-                        || g_str_equal(kv->key, "icon-url") || g_str_equal(kv->key, "user-agent")) {
-                    if (type == KNOWN_PRESET) {
-                        g_warning("Setting custom values in preset account, skipping this account");
-                        skip = TRUE;
-                        break;
-                    }
-                    type = KNOWN_CUSTOM;
-                    if (g_str_equal(kv->key, "service-name")) {
-                        move_ptr(&service_name, &kv->value);
-                    } else if (g_str_equal(kv->key, "service-url")) {
-                        move_ptr(&service_url, &kv->value);
-                    } else if (g_str_equal(kv->key, "icon-url")) {
-                        move_ptr(&icon_url, &kv->value);
-                    } else if (g_str_equal(kv->key, "user-agent")) {
-                        move_ptr(&user_agent, &kv->value);
-                    }
+                    account->preset = preset;
+                } else if (g_str_equal(kv->key, "service-name")) {
+                    move_ptr(&account->service_name, &kv->value);
+                } else if (g_str_equal(kv->key, "service-url")) {
+                    move_ptr(&account->service_url, &kv->value);
+                } else if (g_str_equal(kv->key, "icon-url")) {
+                    move_ptr(&account->icon_url, &kv->value);
+                } else if (g_str_equal(kv->key, "user-agent")) {
+                    move_ptr(&account->user_agent, &kv->value);
                 } else {
                     g_warning("Ignoring unknown account detail %s", kv->key);
                 }
             }
-            if (!skip) {
-                if (id && preset) {
-                    MelangeAccount *account = melange_account_new_from_preset(id, preset);
-                    if (account) {
-                        melange_config_add_account(config, account);
-                        id = NULL;
-                    }
-                } else if (id && service_name && service_url && icon_url && user_agent) {
-                    melange_config_add_account(config,
-                            melange_account_new(id, service_name, service_url, icon_url, user_agent));
-                    id = service_name = service_url = icon_url = user_agent = NULL;
-                } else {
-                    g_warning("Ignoring incomplete account in configuration");
-                }
+            if (account->id && (account->preset || (account->service_name
+                    && account->service_url && account->icon_url && account->user_agent))) {
+                g_array_append_val(config->accounts, account);
+            } else {
+                g_warning("Ignoring incomplete account in configuration");
+                melange_account_free(account);
             }
-            g_free(id);
-            g_free(preset);
-            g_free(service_name);
-            g_free(service_url);
-            g_free(icon_url);
-            g_free(user_agent);
         } else {
             g_warning("Ignoring unknown configuration block \"%s\"", block->type);
         }
