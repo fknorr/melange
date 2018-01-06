@@ -5,6 +5,7 @@
 
 #include <string.h>
 #include <errno.h>
+#include <cairo.h>
 
 
 struct MelangeApp {
@@ -15,6 +16,9 @@ struct MelangeApp {
     GtkStatusIcon *status_icon;
     GtkWidget *status_menu;
     GtkWidget *main_window;
+
+    GdkPixbuf **notify_icons;
+    int unread_messages;
 
     WebKitWebContext *web_context;
 
@@ -31,6 +35,7 @@ enum {
     MELANGE_APP_PROP_DARK_THEME = 1,
     MELANGE_APP_PROP_CLIENT_SIDE_DECORATIONS,
     MELANGE_APP_PROP_AUTO_HIDE_SIDEBAR,
+    MELANGE_APP_PROP_UNREAD_MESSAGES,
     MELANGE_APP_PROP_EXECUTABLE_FILE,
     MELANGE_APP_N_PROPS
 };
@@ -66,6 +71,10 @@ melange_app_get_property(GObject *object, guint property_id, GValue *value, GPar
             }
             break;
 
+        case MELANGE_APP_PROP_UNREAD_MESSAGES:
+            g_value_set_int(value, app->unread_messages);
+            break;
+
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
     }
@@ -99,6 +108,24 @@ melange_app_set_property(GObject *object, guint property_id, const GValue *value
             } else {
                 g_warning("Invalid value for property client-side-decorations: %s", str_value);
             }
+            break;
+        }
+
+        case MELANGE_APP_PROP_UNREAD_MESSAGES: {
+            app->unread_messages = g_value_get_int(value);
+            int icon_index = MIN(app->unread_messages, 10);
+
+            if (app->main_window) {
+                gtk_window_set_icon(GTK_WINDOW(app->main_window), app->notify_icons[icon_index]);
+            }
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+            if (app->status_icon) {
+                gtk_status_icon_set_from_pixbuf(app->status_icon, app->notify_icons[icon_index]);
+            }
+#pragma GCC diagnostic pop
+
             break;
         }
 
@@ -367,11 +394,25 @@ melange_app_startup(GApplication *g_app) {
 
     g_object_unref(builder);
 
+    app->notify_icons = g_malloc(11 * sizeof *app->notify_icons);
+    for (size_t i = 0; i < 11; ++i) {
+        char *file_name = "icons/melange.svg";
+        if (0 < i && i < 10) {
+            file_name = g_strdup_printf("icons/unread/%zu.svg", i);
+        } else if (i == 10) {
+            file_name = "icons/unread/many.svg";
+        }
+        app->notify_icons[i] = melange_app_load_pixbuf_resource(app, file_name, 32, 32, FALSE);
+        if (0 < i && i < 10) {
+            g_free(file_name);
+        }
+    }
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
-    GdkPixbuf *icon = melange_app_load_pixbuf_resource(app, "icons/melange.svg", 32, 32, FALSE);
-    gtk_status_icon_set_from_pixbuf(app->status_icon, icon);
+    int icon_index = app->unread_messages > 10 ? 10 : app->unread_messages;
+    gtk_status_icon_set_from_pixbuf(app->status_icon, app->notify_icons[icon_index]);
     gtk_status_icon_set_visible(app->status_icon, TRUE);
 
 #pragma GCC diagnostic pop
@@ -380,7 +421,7 @@ melange_app_startup(GApplication *g_app) {
     melange_app_start_updating_icons(app);
 
     app->main_window = melange_main_window_new(app);
-    gtk_window_set_icon(GTK_WINDOW(app->main_window), icon);
+    gtk_window_set_icon(GTK_WINDOW(app->main_window), app->notify_icons[icon_index]);
     gtk_window_set_title(GTK_WINDOW(app->main_window), "Melange");
     g_signal_connect_swapped(app->main_window, "destroy", G_CALLBACK(g_application_quit), app);
     g_signal_connect(app->main_window, "delete-event",
@@ -451,6 +492,8 @@ melange_app_class_init(MelangeAppClass *cls) {
     property_specs[MELANGE_APP_PROP_CLIENT_SIDE_DECORATIONS] = g_param_spec_string(
             "client-side-decorations", "client-side-decorations", "client-side-decorations",
             "auto", property_flags);
+    property_specs[MELANGE_APP_PROP_UNREAD_MESSAGES] = g_param_spec_int(
+            "unread-messages", "unread-messages", "unread-messages", 0, INT_MAX, 0, property_flags);
     property_specs[MELANGE_APP_PROP_EXECUTABLE_FILE] = g_param_spec_string("executable-file",
             "executable-file", "executable-file", NULL, G_PARAM_CONSTRUCT_ONLY | G_PARAM_WRITABLE
             | G_PARAM_STATIC_NAME | G_PARAM_STATIC_NICK | G_PARAM_STATIC_BLURB);
