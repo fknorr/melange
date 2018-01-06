@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.4 FATAL_ERROR)
-project(melange)
+project(melange VERSION 0.1)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 include(AppendArgs)
@@ -17,6 +17,7 @@ find_package(BISON REQUIRED)
 
 add_definitions(
     -DMELANGE_INSTALL_PREFIX="${CMAKE_INSTALL_PREFIX}"
+    -DMELANGE_VERSION="${PROJECT_VERSION}"
 )
 
 append_args(CMAKE_C_FLAGS

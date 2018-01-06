@@ -82,7 +82,7 @@ melange_main_window_web_view_notify_title(WebKitWebView *web_view, GParamSpec *p
         unread = (int) strtol(g_match_info_fetch(match, 0), NULL, 10);
     }
 
-    g_debug("title \"%s\", seeing %d unread\n", webkit_web_view_get_title(web_view), unread);
+    g_debug("title \"%s\", seeing %d unread", webkit_web_view_get_title(web_view), unread);
 
     g_object_set(win->app, "unread-messages", unread, NULL);
 }

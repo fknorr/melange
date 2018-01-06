@@ -16,6 +16,7 @@ struct MelangeApp {
     GtkStatusIcon *status_icon;
     GtkWidget *status_menu;
     GtkWidget *main_window;
+    GtkWidget *about_dialog;
 
     GdkPixbuf **notify_icons;
     int unread_messages;
@@ -394,6 +395,17 @@ melange_app_show_message_notification(MelangeApp *app, const char *title, const 
 
 
 static void
+melange_app_about_action_activate(GSimpleAction *simple, GVariant *parameter, MelangeApp *app) {
+    (void) simple;
+    (void) parameter;
+
+    if (app->about_dialog) {
+        gtk_window_present(GTK_WINDOW(app->about_dialog));
+    }
+}
+
+
+static void
 melange_app_startup(GApplication *g_app) {
     G_APPLICATION_CLASS(melange_app_parent_class)->startup(g_app);
 
@@ -407,16 +419,21 @@ melange_app_startup(GApplication *g_app) {
     GtkBuilder *builder = melange_app_load_ui_resource(app, "ui/app.glade", FALSE);
     gtk_builder_connect_signals(builder, app);
 
-    GMenu *app_menu = g_menu_new();
-    g_menu_append(app_menu, "About", NULL);
-    gtk_application_set_app_menu(GTK_APPLICATION(app), G_MENU_MODEL(app_menu));
-
     app->status_icon = GTK_STATUS_ICON(gtk_builder_get_object(builder, "status-icon"));
     g_object_ref(app->status_icon);
 
     app->status_menu = GTK_WIDGET(gtk_builder_get_object(builder, "status-menu"));
+    app->about_dialog = GTK_WIDGET(gtk_builder_get_object(builder, "about-dialog"));
 
     g_object_unref(builder);
+
+    GSimpleAction *about_action = g_simple_action_new("about", NULL);
+    g_signal_connect(about_action, "activate", G_CALLBACK(melange_app_about_action_activate), app);
+    g_action_map_add_action(G_ACTION_MAP(app), G_ACTION(about_action));
+
+    GMenu *app_menu = g_menu_new();
+    g_menu_append(app_menu, "About", "app.about");
+    gtk_application_set_app_menu(GTK_APPLICATION(app), G_MENU_MODEL(app_menu));
 
     app->notify_icons = g_malloc(11 * sizeof *app->notify_icons);
     for (size_t i = 0; i < 11; ++i) {
@@ -431,6 +448,10 @@ melange_app_startup(GApplication *g_app) {
             g_free(file_name);
         }
     }
+
+    gtk_about_dialog_set_logo(GTK_ABOUT_DIALOG(app->about_dialog),
+            melange_app_load_pixbuf_resource(app, "icons/melange.svg", 128, 128, FALSE));
+    gtk_about_dialog_set_version(GTK_ABOUT_DIALOG(app->about_dialog), "Version " MELANGE_VERSION);
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
