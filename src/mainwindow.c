@@ -140,7 +140,10 @@ melange_main_window_web_view_show_notification(WebKitWebView *web_view,
     MelangeAccount *account = g_object_get_data(G_OBJECT(web_view), "account");
     g_assert(account);
 
-    melange_main_window_update_unread_messages(win, web_view, 1);
+    if (!gtk_window_is_active(GTK_WINDOW(win))
+            || gtk_stack_get_visible_child(GTK_STACK(win->view_stack)) != GTK_WIDGET(web_view)) {
+        melange_main_window_update_unread_messages(win, web_view, 1);
+    }
 
     const char *title = webkit_notification_get_title(notification);
     const char *body = webkit_notification_get_body(notification);
@@ -242,6 +245,22 @@ melange_main_window_client_side_decorations_setting_changed(GtkComboBox *combo_b
         MelangeMainWindow *win)
 {
     g_object_set(win->app, "client-side-decorations", gtk_combo_box_get_active_id(combo_box), NULL);
+}
+
+
+static void
+melange_main_window_notify_is_active(GObject *obj, GParamSpec *pspec,
+        MelangeMainWindow *win)
+{
+    (void) obj;
+    (void) pspec;
+
+    if (gtk_window_is_active(GTK_WINDOW(win))) {
+        GtkWidget *active_view = gtk_stack_get_visible_child(GTK_STACK(win->view_stack));
+        if (WEBKIT_IS_WEB_VIEW(active_view)) {
+            melange_main_window_update_unread_messages(win, WEBKIT_WEB_VIEW(active_view), 0);
+        }
+    }
 }
 
 
@@ -674,6 +693,7 @@ melange_main_window_constructed(GObject *obj) {
                      melange_main_window_create_utility_switcher_button(win, "add", win->add_view),
                      FALSE, FALSE, 0);
 
+    g_signal_connect(win, "notify::is-active", G_CALLBACK(melange_main_window_notify_is_active), win);
     g_signal_connect(win, "button-press-event", G_CALLBACK(melange_main_window_button_press_event), win);
     g_signal_connect(win, "key-press-event", G_CALLBACK(melange_main_window_key_press_event), win);
     g_signal_connect(win->app, "icon-available", G_CALLBACK(melange_main_window_icon_available), win);
