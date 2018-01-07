@@ -3,6 +3,7 @@
 #include "util.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 
 struct MelangeMainWindow {
@@ -32,6 +33,8 @@ struct MelangeMainWindow {
 
     // Button grid in add view
     GtkWidget *service_grid;
+
+    GtkWidget *download_dialog;
 
     // Matches number of notifications in titles like "(1) WhatsApp"
     GRegex *new_message_regex;
@@ -184,24 +187,62 @@ melange_main_window_web_view_decide_policy(WebKitWebView *web_view, WebKitPolicy
     (void) web_view;
     (void) win;
 
-    // Web apps usually try to open external urls in a new window, so we can redirect that to
-    // the os to open a browser window
-    if (decision_type == WEBKIT_POLICY_DECISION_TYPE_NEW_WINDOW_ACTION) {
+    if (decision_type == WEBKIT_POLICY_DECISION_TYPE_NEW_WINDOW_ACTION
+            || decision_type == WEBKIT_POLICY_DECISION_TYPE_NAVIGATION_ACTION) {
         WebKitNavigationAction *action = webkit_navigation_policy_decision_get_navigation_action(
                         WEBKIT_NAVIGATION_POLICY_DECISION(decision));
-        WebKitURIRequest *request = webkit_navigation_action_get_request(action);
-        if (g_str_equal(webkit_uri_request_get_http_method(request), "GET")) {
-            GError *error;
-            if (!g_app_info_launch_default_for_uri(webkit_uri_request_get_uri(request), NULL,
-                    &error)) {
-                g_warning("Unable to open link in external application: %s", error->message);
+        const char *uri = webkit_uri_request_get_uri(webkit_navigation_action_get_request(action));
+        if (strncmp(uri, "blob:", 5) == 0) {
+            // Download urls start with blob:, apparently
+            webkit_policy_decision_download(decision);
+            return TRUE;
+        } else if (decision_type == WEBKIT_POLICY_DECISION_TYPE_NEW_WINDOW_ACTION) {
+            // Web apps usually try to open external urls in a new window, so we can redirect that
+            // to the os to open a browser window
+            GError *error = NULL;
+            if (!g_app_info_launch_default_for_uri(uri, NULL, &error)) {
+                g_warning("Unable to open URI %s in external application: %s", uri, error->message);
                 g_error_free(error);
             }
+            webkit_policy_decision_ignore(decision);
+            return TRUE;
         }
-        webkit_policy_decision_ignore(decision);
-        return TRUE;
     }
     return FALSE;
+}
+
+
+static gboolean
+melange_main_window_download_decide_destination(WebKitDownload *download, gchar *suggested_filename,
+        MelangeMainWindow *win) {
+    if (!win->download_dialog) {
+        win->download_dialog = gtk_file_chooser_dialog_new("Download File", GTK_WINDOW(win),
+                GTK_FILE_CHOOSER_ACTION_SAVE, "_Cancel", GTK_RESPONSE_CANCEL,
+                "_Download", GTK_RESPONSE_ACCEPT, NULL);
+        gtk_window_set_destroy_with_parent(GTK_WINDOW(win->download_dialog), TRUE);
+    }
+
+    gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(win->download_dialog), suggested_filename);
+    int response = gtk_dialog_run(GTK_DIALOG(win->download_dialog));
+    gtk_widget_hide(GTK_WIDGET(win->download_dialog));
+
+    if (response == GTK_RESPONSE_ACCEPT) {
+        webkit_download_set_destination(download, gtk_file_chooser_get_uri(
+                GTK_FILE_CHOOSER(win->download_dialog)));
+        webkit_download_set_allow_overwrite(download, TRUE);
+    } else {
+        webkit_download_cancel(download);
+    }
+    return TRUE;
+}
+
+
+void
+melange_main_window_web_context_download_started(WebKitWebContext *context,
+        WebKitDownload *download, MelangeMainWindow *win) {
+    (void) context;
+    g_signal_connect(download, "decide-destination",
+            G_CALLBACK(melange_main_window_download_decide_destination), win);
 }
 
 
@@ -521,6 +562,8 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
     g_free(base_path);
 
     WebKitWebContext *web_context = webkit_web_context_new_with_website_data_manager(data_manager);
+    g_signal_connect(web_context, "download-started",
+            G_CALLBACK(melange_main_window_web_context_download_started), win);
 
     WebKitSecurityOrigin *origin = webkit_security_origin_new_for_uri(
             melange_account_get_service_url(account));
