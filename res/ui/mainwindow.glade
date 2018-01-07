@@ -465,6 +465,7 @@
               <object class="GtkImage" id="sidebar-handle">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="no_show_all">True</property>
                 <property name="margin_right">3</property>
                 <property name="stock">gtk-missing-image</property>
               </object>

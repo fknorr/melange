@@ -85,6 +85,14 @@ melange_main_window_update_unread_messages(MelangeMainWindow *win, WebKitWebView
 
     g_object_set(win->app, "unread-messages", global, NULL);
     g_object_set_data(G_OBJECT(web_view), "unread-messages", (gpointer) (intptr_t) local);
+
+    GtkWidget *notify_label = g_object_get_data(G_OBJECT(web_view), "notify-label");
+    if (local > 0) {
+        char text[10] = { 0 };
+        snprintf(text, 10, "%d", local);
+        gtk_label_set_text(GTK_LABEL(notify_label), text);
+    }
+    gtk_widget_set_visible(notify_label, local > 0);
 }
 
 
@@ -244,10 +252,6 @@ melange_main_window_realize(GtkWidget *widget) {
     MelangeMainWindow *win = MELANGE_MAIN_WINDOW(widget);
     melange_main_window_hide_sidebar_after_timeout(win, 3000);
     gtk_stack_set_visible_child(GTK_STACK(win->view_stack), win->last_web_view ? win->last_web_view : win->add_view);
-
-    gboolean auto_hide_sidebar;
-    g_object_get(win->app, "auto-hide-sidebar", &auto_hide_sidebar, NULL);
-    gtk_widget_set_visible(win->sidebar_handle, auto_hide_sidebar);
 }
 
 
@@ -283,7 +287,8 @@ melange_main_window_switcher_button_clicked(GtkButton *button, MelangeMainWindow
 
 static GtkWidget *
 melange_main_window_create_switcher_button(MelangeMainWindow *win,GdkPixbuf *pixbuf,
-                                           int padding, GtkWidget *switch_to) {
+        int padding, GtkWidget *switch_to, gboolean notifications)
+{
     int padded_size = 32 - 2 * padding;
 
     GtkWidget *image = gtk_image_new_from_pixbuf(pixbuf);
@@ -295,7 +300,26 @@ melange_main_window_create_switcher_button(MelangeMainWindow *win,GdkPixbuf *pix
 
     GtkWidget *switcher = gtk_button_new();
     gtk_button_set_relief(GTK_BUTTON(switcher), GTK_RELIEF_NONE);
-    gtk_button_set_image(GTK_BUTTON(switcher), image);
+
+    if (notifications) {
+        GtkWidget *overlay = gtk_overlay_new();
+        gtk_container_add(GTK_CONTAINER(overlay), image);
+
+        GtkWidget *label = gtk_label_new(NULL);
+        gtk_widget_set_halign(label, GTK_ALIGN_END);
+        gtk_widget_set_valign(label, GTK_ALIGN_END);
+        gtk_widget_set_name(label, "notify-label");
+        gtk_widget_set_no_show_all(label, TRUE);
+        gtk_overlay_add_overlay(GTK_OVERLAY(overlay), label);
+        gtk_overlay_set_overlay_pass_through(GTK_OVERLAY(overlay), label, TRUE);
+
+        gtk_container_add(GTK_CONTAINER(switcher), overlay);
+        g_object_set_data(G_OBJECT(switcher), "notify-label", label);
+        g_object_set_data(G_OBJECT(switch_to), "notify-label", label);
+    } else {
+        gtk_button_set_image(GTK_BUTTON(switcher), image);
+    }
+
     g_object_set_data(G_OBJECT(switcher), "switch-to", switch_to);
     g_signal_connect(switcher, "clicked", G_CALLBACK(melange_main_window_switcher_button_clicked), win);
     return switcher;
@@ -312,7 +336,7 @@ melange_main_window_create_utility_switcher_button(MelangeMainWindow *win, const
                                                   padded_size, FALSE);
     g_free(file_name);
 
-    return melange_main_window_create_switcher_button(win, pixbuf, 8, switch_to);
+    return melange_main_window_create_switcher_button(win, pixbuf, 8, switch_to, FALSE);
 }
 
 
@@ -433,7 +457,7 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
     }
 
     GtkWidget *switcher_button = melange_main_window_create_switcher_button(
-            win, pixbuf, 0, web_view);
+            win, pixbuf, 0, web_view, TRUE);
     gtk_container_add(GTK_CONTAINER(win->switcher_box), switcher_button);
     gtk_widget_show_all(switcher_button);
 
