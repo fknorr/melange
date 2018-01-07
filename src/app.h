@@ -25,21 +25,21 @@ GdkPixbuf *melange_app_request_icon(MelangeApp *app, const char *hostname);
 gboolean melange_app_add_account(MelangeApp *app, MelangeAccount *account);
 
 void melange_app_iterate_accounts(MelangeApp *app, MelangeAccountConstFunc func,
-                                  gpointer user_data);
+        gpointer user_data);
 
 char *melange_app_get_resource_path(MelangeApp *app, const char *resource);
 
 GdkPixbuf *melange_app_load_pixbuf_resource(MelangeApp *app, const char *resource,
-                                            gint width, gint height, gboolean allow_failure);
+        gint width, gint height, gboolean allow_failure);
 
 GtkBuilder *melange_app_load_ui_resource(MelangeApp *app, const char *resource,
-                                         gboolean allow_failure);
+        gboolean allow_failure);
 
 char *melange_app_load_text_resource(MelangeApp *app, const char *resource,
-                                     gboolean allow_failure);
+        gboolean allow_failure);
 
 void melange_app_show_message_notification(MelangeApp *app, const char *title, const char *body,
-                                           const char *service);
+        const char *service);
 
 
 #endif // MELANGE_APP_H

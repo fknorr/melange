@@ -52,8 +52,7 @@ G_DEFINE_TYPE(MelangeApp, melange_app, GTK_TYPE_APPLICATION)
 
 
 static void
-melange_app_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec)
-{
+melange_app_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec) {
     MelangeApp *app = MELANGE_APP(object);
     switch (property_id) {
         case MELANGE_APP_PROP_DARK_THEME:
@@ -66,9 +65,15 @@ melange_app_get_property(GObject *object, guint property_id, GValue *value, GPar
 
         case MELANGE_APP_PROP_CLIENT_SIDE_DECORATIONS:
             switch (app->config->client_side_decorations) {
-                case MELANGE_CSD_OFF: g_value_set_string(value, "off"); break;
-                case MELANGE_CSD_ON: g_value_set_string(value, "on"); break;
-                case MELANGE_CSD_AUTO: g_value_set_string(value, "auto"); break;
+                case MELANGE_CSD_OFF:
+                    g_value_set_string(value, "off");
+                    break;
+                case MELANGE_CSD_ON:
+                    g_value_set_string(value, "on");
+                    break;
+                case MELANGE_CSD_AUTO:
+                    g_value_set_string(value, "auto");
+                    break;
             }
             break;
 
@@ -84,8 +89,7 @@ melange_app_get_property(GObject *object, guint property_id, GValue *value, GPar
 
 static void
 melange_app_set_property(GObject *object, guint property_id, const GValue *value,
-        GParamSpec *pspec)
-{
+        GParamSpec *pspec) {
     MelangeApp *app = MELANGE_APP(object);
     switch (property_id) {
         case MELANGE_APP_PROP_DARK_THEME:
@@ -134,7 +138,7 @@ melange_app_set_property(GObject *object, guint property_id, const GValue *value
             const char *executable = g_value_get_string(value);
             if (strncmp(executable, MELANGE_INSTALL_PREFIX, strlen(MELANGE_INSTALL_PREFIX)) == 0) {
                 app->resource_base_path = g_build_path(G_DIR_SEPARATOR_S, MELANGE_INSTALL_PREFIX,
-                                                       "share/melange", NULL);
+                        "share/melange", NULL);
             } else {
                 char *path = g_malloc(strlen(executable) + 4);
                 strcpy(path, executable);
@@ -142,7 +146,7 @@ melange_app_set_property(GObject *object, guint property_id, const GValue *value
                     char *separator = strrchr(path, G_DIR_SEPARATOR);
                     if (!separator) {
                         g_warning("Could not find resource base path, tried every parent of %s",
-                                  executable);
+                                executable);
                         g_free(path);
                         return;
                     }
@@ -182,12 +186,11 @@ melange_app_status_icon_activate(GtkStatusIcon *status_icon, MelangeApp *app) {
 
 GLADE_EVENT_HANDLER gboolean
 melange_app_status_icon_button_press_event(GtkStatusIcon *status_icon, GdkEvent *event,
-        MelangeApp *app)
-{
+        MelangeApp *app) {
     (void) status_icon;
 
     if (event->type == GDK_BUTTON_PRESS) {
-        GdkEventButton *button_event = (GdkEventButton*) event;
+        GdkEventButton *button_event = (GdkEventButton *) event;
         if (button_event->button == GDK_BUTTON_SECONDARY) {
             gtk_menu_popup_at_pointer(GTK_MENU(app->status_menu), event);
             return TRUE;
@@ -210,12 +213,11 @@ melange_app_main_window_delete_event(GtkWidget *widget, GdkEvent *event, gpointe
 
 static gboolean
 melange_app_decide_icon_destination(WebKitDownload *download, gchar *suggested_filename,
-                                    MelangeAppIconDownloadContext *context)
-{
+        MelangeAppIconDownloadContext *context) {
     (void) suggested_filename;
 
     char *uri = g_strdup_printf("file://%s/%s.ico", context->app->icon_cache_dir,
-                                context->preset->id);
+            context->preset->id);
     webkit_download_set_destination(download, uri);
     g_free(uri);
 
@@ -224,7 +226,8 @@ melange_app_decide_icon_destination(WebKitDownload *download, gchar *suggested_f
 
 
 static void
-melange_app_icon_download_failed(WebKitDownload *download, GError *error, MelangeAppIconDownloadContext *context) {
+melange_app_icon_download_failed(WebKitDownload *download, GError *error,
+        MelangeAppIconDownloadContext *context) {
     (void) download;
     (void) error;
 
@@ -234,13 +237,14 @@ melange_app_icon_download_failed(WebKitDownload *download, GError *error, Melang
 
 
 static void
-melange_app_icon_download_finished(WebKitDownload *download, MelangeAppIconDownloadContext *context) {
+melange_app_icon_download_finished(WebKitDownload *download,
+        MelangeAppIconDownloadContext *context) {
     (void) download;
 
     if (context->failed) goto cleanup;
 
     char *file_name = g_strdup_printf("%s/%s.ico", context->app->icon_cache_dir,
-                                      context->preset->id);
+            context->preset->id);
 
     GError *error = NULL;
     GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(file_name, 32, 32, &error);
@@ -254,7 +258,7 @@ melange_app_icon_download_finished(WebKitDownload *download, MelangeAppIconDownl
 
     g_free(file_name);
 
-cleanup:
+    cleanup:
     g_free(context);
 }
 
@@ -276,19 +280,22 @@ melange_app_start_updating_icons(MelangeApp *app) {
         }
 
         WebKitDownload *download = webkit_web_context_download_uri(app->web_context,
-                                                                   preset->icon_url);
+                preset->icon_url);
 
         MelangeAppIconDownloadContext context_template = {
-            .app = app,
-            .preset = preset,
-            .failed = FALSE,
+                .app = app,
+                .preset = preset,
+                .failed = FALSE,
         };
 
-        MelangeAppIconDownloadContext *context = g_memdup(&context_template, sizeof context_template);
+        MelangeAppIconDownloadContext *context = g_memdup(&context_template,
+                sizeof context_template);
 
-        g_signal_connect(download, "decide-destination", G_CALLBACK(melange_app_decide_icon_destination), context);
+        g_signal_connect(download, "decide-destination",
+                G_CALLBACK(melange_app_decide_icon_destination), context);
         g_signal_connect(download, "failed", G_CALLBACK(melange_app_icon_download_failed), context);
-        g_signal_connect(download, "finished", G_CALLBACK(melange_app_icon_download_finished), context);
+        g_signal_connect(download, "finished", G_CALLBACK(melange_app_icon_download_finished),
+                context);
     }
 }
 
@@ -325,7 +332,7 @@ melange_app_get_resource_path(MelangeApp *app, const char *resource) {
 
 GdkPixbuf *
 melange_app_load_pixbuf_resource(MelangeApp *app, const char *resource, gint width, gint height,
-                                gboolean allow_failure) {
+        gboolean allow_failure) {
     GError *error = NULL;
     char *path = melange_app_get_resource_path(app, resource);
     GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(path, width, height, &error);
@@ -364,8 +371,7 @@ melange_app_load_text_resource(MelangeApp *app, const char *resource, gboolean a
 
 void
 melange_app_show_message_notification(MelangeApp *app, const char *title, const char *body,
-                                      const char *service)
-{
+        const char *service) {
     char *icon_path = NULL;
     if (service) {
         icon_path = g_strdup_printf("%s/%s.ico", app->icon_cache_dir, service);
@@ -408,14 +414,16 @@ melange_app_startup(GApplication *g_app) {
     GtkBuilder *builder = melange_app_load_ui_resource(app, "ui/app.glade", FALSE);
     gtk_builder_connect_signals(builder, app);
 
-    app->status_icon = g_object_ref(GTK_STATUS_ICON(gtk_builder_get_object(builder, "status-icon")));
+    app->status_icon = g_object_ref(
+            GTK_STATUS_ICON(gtk_builder_get_object(builder, "status-icon")));
     app->status_menu = g_object_ref(GTK_WIDGET(gtk_builder_get_object(builder, "status-menu")));
     app->about_dialog = GTK_WIDGET(gtk_builder_get_object(builder, "about-dialog"));
 
     g_object_unref(builder);
 
     GSimpleAction *about_action = g_simple_action_new("about", NULL);
-    g_signal_connect_swapped(about_action, "activate", G_CALLBACK(melange_app_about_action_activate), app);
+    g_signal_connect_swapped(about_action, "activate",
+            G_CALLBACK(melange_app_about_action_activate), app);
     g_action_map_add_action(G_ACTION_MAP(app), G_ACTION(about_action));
 
     GSimpleAction *quit_action = g_simple_action_new("quit", NULL);
@@ -519,8 +527,8 @@ melange_app_class_init(MelangeAppClass *cls) {
     object_class->set_property = melange_app_set_property;
 
     GParamSpec *property_specs[MELANGE_APP_N_PROPS] = { NULL };
-    GParamFlags property_flags =  G_PARAM_READWRITE | G_PARAM_STATIC_NAME | G_PARAM_STATIC_NICK
-                    | G_PARAM_STATIC_BLURB;
+    GParamFlags property_flags = G_PARAM_READWRITE | G_PARAM_STATIC_NAME | G_PARAM_STATIC_NICK
+            | G_PARAM_STATIC_BLURB;
 
     property_specs[MELANGE_APP_PROP_DARK_THEME] = g_param_spec_boolean("dark-theme", "dark-theme",
             "dark-theme", FALSE, property_flags);
@@ -533,12 +541,12 @@ melange_app_class_init(MelangeAppClass *cls) {
             "unread-messages", "unread-messages", "unread-messages", 0, INT_MAX, 0, property_flags);
     property_specs[MELANGE_APP_PROP_EXECUTABLE_FILE] = g_param_spec_string("executable-file",
             "executable-file", "executable-file", NULL, G_PARAM_CONSTRUCT_ONLY | G_PARAM_WRITABLE
-            | G_PARAM_STATIC_NAME | G_PARAM_STATIC_NICK | G_PARAM_STATIC_BLURB);
+                    | G_PARAM_STATIC_NAME | G_PARAM_STATIC_NICK | G_PARAM_STATIC_BLURB);
 
     g_object_class_install_properties(G_OBJECT_CLASS(cls), MELANGE_APP_N_PROPS, property_specs);
 
     g_signal_new("icon-available", MELANGE_TYPE_APP, G_SIGNAL_RUN_LAST, 0, NULL, NULL, NULL,
-                 G_TYPE_NONE, 2, G_TYPE_STRING, GDK_TYPE_PIXBUF);
+            G_TYPE_NONE, 2, G_TYPE_STRING, GDK_TYPE_PIXBUF);
 }
 
 

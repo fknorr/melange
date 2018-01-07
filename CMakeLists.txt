@@ -20,7 +20,8 @@ add_definitions(
     -DMELANGE_VERSION="${PROJECT_VERSION}"
 )
 
-append_args(CMAKE_C_FLAGS
+append_args(
+    CMAKE_C_FLAGS
     -fmax-errors=5
     -Wall
     -Wconversion
@@ -51,7 +52,8 @@ link_directories(
 flex_target(config_parser src/config.l ${CMAKE_CURRENT_BINARY_DIR}/config.c)
 bison_target(config_parser src/config.y ${CMAKE_CURRENT_BINARY_DIR}/config.tab.c)
 
-add_executable(melange
+add_executable(
+    melange
     src/main.c
     src/app.c src/app.h
     src/mainwindow.c src/mainwindow.h
@@ -62,13 +64,15 @@ add_executable(melange
     ${BISON_config_parser_OUTPUTS}
 )
 
-target_link_libraries(melange
+target_link_libraries(
+    melange
     ${GTK3_LIBRARIES}
     ${WEBKIT2GTK_LIBRARIES}
     ${LIBNOTIFY_LIBRARIES}
 )
 
-set_target_properties(melange PROPERTIES LINK_FLAGS
+set_target_properties(
+    melange PROPERTIES LINK_FLAGS
     -rdynamic
 )
 

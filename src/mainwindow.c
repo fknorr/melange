@@ -5,8 +5,7 @@
 #include <stdlib.h>
 
 
-struct MelangeMainWindow
-{
+struct MelangeMainWindow {
     GtkApplicationWindow parent_instance;
 
     MelangeApp *app;
@@ -24,7 +23,7 @@ struct MelangeMainWindow
 
     GRegex *new_message_regex;
     guint sidebar_timeout;
-    const char* initial_csd_setting;
+    const char *initial_csd_setting;
 };
 
 typedef GtkApplicationWindowClass MelangeMainWindowClass;
@@ -40,8 +39,7 @@ G_DEFINE_TYPE(MelangeMainWindow, melange_main_window, GTK_TYPE_APPLICATION_WINDO
 
 static void
 melange_main_window_set_property(GObject *object, guint property_id, const GValue *value,
-        GParamSpec *pspec)
-{
+        GParamSpec *pspec) {
     MelangeMainWindow *win = MELANGE_MAIN_WINDOW(object);
     switch (property_id) {
         case MELANGE_MAIN_WINDOW_PROP_APP:
@@ -70,8 +68,7 @@ melange_main_window_web_view_context_menu(WebKitWebView *web_view, WebKitContext
 
 static void
 melange_main_window_update_unread_messages(MelangeMainWindow *win, WebKitWebView *web_view,
-                                           int difference)
-{
+        int difference) {
     int global;
     g_object_get(win->app, "unread-messages", &global, NULL);
     int local = (int) (intptr_t) g_object_get_data(G_OBJECT(web_view), "unread-messages");
@@ -135,8 +132,7 @@ melange_main_window_web_view_load_changed(WebKitWebView *web_view, WebKitLoadEve
 
 static gboolean
 melange_main_window_web_view_show_notification(WebKitWebView *web_view,
-        WebKitNotification *notification, MelangeMainWindow *win)
-{
+        WebKitNotification *notification, MelangeMainWindow *win) {
     MelangeAccount *account = g_object_get_data(G_OBJECT(web_view), "account");
     g_assert(account);
 
@@ -197,8 +193,7 @@ melange_main_window_hide_sidebar_after_timeout(MelangeMainWindow *win, guint tim
 
 GLADE_EVENT_HANDLER gboolean
 melange_main_window_sidebar_enter_notify_event(GtkWidget *widget, GdkEvent *event,
-        MelangeMainWindow *win)
-{
+        MelangeMainWindow *win) {
     (void) widget;
     (void) event;
 
@@ -210,8 +205,7 @@ melange_main_window_sidebar_enter_notify_event(GtkWidget *widget, GdkEvent *even
 
 GLADE_EVENT_HANDLER gboolean
 melange_main_window_sidebar_leave_notify_event(GtkWidget *widget, GdkEvent *event,
-        MelangeMainWindow *win)
-{
+        MelangeMainWindow *win) {
     (void) widget;
     (void) event;
 
@@ -222,8 +216,7 @@ melange_main_window_sidebar_leave_notify_event(GtkWidget *widget, GdkEvent *even
 
 GLADE_EVENT_HANDLER gboolean
 melange_main_window_dark_theme_setting_state_set(GtkSwitch *widget, gboolean state,
-        MelangeMainWindow *win)
-{
+        MelangeMainWindow *win) {
     (void) widget;
     g_object_set(win->app, "dark-theme", state, NULL);
     return FALSE;
@@ -232,8 +225,7 @@ melange_main_window_dark_theme_setting_state_set(GtkSwitch *widget, gboolean sta
 
 GLADE_EVENT_HANDLER gboolean
 melange_main_window_auto_hide_sidebar_setting_state_set(GtkSwitch *widget, gboolean state,
-        MelangeMainWindow *win)
-{
+        MelangeMainWindow *win) {
     (void) widget;
     g_object_set(win->app, "auto-hide-sidebar", state, NULL);
     return FALSE;
@@ -242,16 +234,13 @@ melange_main_window_auto_hide_sidebar_setting_state_set(GtkSwitch *widget, gbool
 
 GLADE_EVENT_HANDLER void
 melange_main_window_client_side_decorations_setting_changed(GtkComboBox *combo_box,
-        MelangeMainWindow *win)
-{
+        MelangeMainWindow *win) {
     g_object_set(win->app, "client-side-decorations", gtk_combo_box_get_active_id(combo_box), NULL);
 }
 
 
 static void
-melange_main_window_notify_is_active(GObject *obj, GParamSpec *pspec,
-        MelangeMainWindow *win)
-{
+melange_main_window_notify_is_active(GObject *obj, GParamSpec *pspec, MelangeMainWindow *win) {
     (void) obj;
     (void) pspec;
 
@@ -270,7 +259,8 @@ melange_main_window_realize(GtkWidget *widget) {
 
     MelangeMainWindow *win = MELANGE_MAIN_WINDOW(widget);
     melange_main_window_hide_sidebar_after_timeout(win, 3000);
-    gtk_stack_set_visible_child(GTK_STACK(win->view_stack), win->last_web_view ? win->last_web_view : win->add_view);
+    gtk_stack_set_visible_child(GTK_STACK(win->view_stack),
+            win->last_web_view ? win->last_web_view : win->add_view);
 }
 
 
@@ -305,9 +295,8 @@ melange_main_window_switcher_button_clicked(GtkButton *button, MelangeMainWindow
 
 
 static GtkWidget *
-melange_main_window_create_switcher_button(MelangeMainWindow *win,GdkPixbuf *pixbuf,
-        int padding, GtkWidget *switch_to, gboolean notifications)
-{
+melange_main_window_create_switcher_button(MelangeMainWindow *win, GdkPixbuf *pixbuf,
+        int padding, GtkWidget *switch_to, gboolean notifications) {
     int padded_size = 32 - 2 * padding;
 
     GtkWidget *image = gtk_image_new_from_pixbuf(pixbuf);
@@ -341,19 +330,20 @@ melange_main_window_create_switcher_button(MelangeMainWindow *win,GdkPixbuf *pix
     }
 
     g_object_set_data(G_OBJECT(switcher), "switch-to", switch_to);
-    g_signal_connect(switcher, "clicked", G_CALLBACK(melange_main_window_switcher_button_clicked), win);
+    g_signal_connect(switcher, "clicked", G_CALLBACK(melange_main_window_switcher_button_clicked),
+            win);
     return switcher;
 }
 
 
 static GtkWidget *
-melange_main_window_create_utility_switcher_button(MelangeMainWindow *win, const char* icon,
-                                                   GtkWidget *switch_to) {
+melange_main_window_create_utility_switcher_button(MelangeMainWindow *win, const char *icon,
+        GtkWidget *switch_to) {
     int padded_size = 16;
 
     char *file_name = g_strdup_printf("icons/light/%s.svg", icon);
     GdkPixbuf *pixbuf = melange_app_load_pixbuf_resource(win->app, file_name, padded_size,
-                                                  padded_size, FALSE);
+            padded_size, FALSE);
     g_free(file_name);
 
     return melange_main_window_create_switcher_button(win, pixbuf, 8, switch_to, FALSE);
@@ -401,7 +391,7 @@ GLADE_EVENT_HANDLER gboolean
 melange_main_window_button_press_event(GtkWidget *widget, GdkEvent *event, MelangeMainWindow *win) {
     (void) widget;
 
-    switch (event->button.button){
+    switch (event->button.button) {
         case 8: // Mouse "back" button
             return melange_main_window_navigate_back(win);
 
@@ -427,7 +417,7 @@ melange_main_window_key_press_event(GtkWidget *widget, GdkEventKey *event, Melan
 static void
 melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow *win) {
     char *base_path = g_strdup_printf("%s/melange/accounts/%s", g_get_user_cache_dir(),
-                                      account->id);
+            account->id);
 
     WebKitWebsiteDataManager *data_manager = webkit_website_data_manager_new(
             "base-data-directory", base_path,
@@ -438,19 +428,20 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
 
     WebKitWebContext *web_context = webkit_web_context_new_with_website_data_manager(data_manager);
 
-    WebKitSecurityOrigin *origin = webkit_security_origin_new_for_uri(melange_account_get_service_url(account));
+    WebKitSecurityOrigin *origin = webkit_security_origin_new_for_uri(
+            melange_account_get_service_url(account));
     GList *allowed_origins = g_list_append(NULL, origin);
     webkit_web_context_initialize_notification_permissions(web_context, allowed_origins, NULL);
 
     GtkWidget *web_view = webkit_web_view_new_with_context(web_context);
     g_signal_connect(web_view, "context-menu",
-                     G_CALLBACK(melange_main_window_web_view_context_menu), win);
+            G_CALLBACK(melange_main_window_web_view_context_menu), win);
     g_signal_connect(web_view, "notify::title",
-                     G_CALLBACK(melange_main_window_web_view_notify_title), win);
+            G_CALLBACK(melange_main_window_web_view_notify_title), win);
     g_signal_connect(web_view, "load-changed",
-                     G_CALLBACK(melange_main_window_web_view_load_changed), win);
+            G_CALLBACK(melange_main_window_web_view_load_changed), win);
     g_signal_connect(web_view, "show-notification",
-                     G_CALLBACK(melange_main_window_web_view_show_notification), win);
+            G_CALLBACK(melange_main_window_web_view_show_notification), win);
 
     WebKitSettings *sett = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(web_view));
     webkit_settings_set_user_agent(sett, melange_account_get_user_agent(account));
@@ -473,7 +464,7 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
     }
     if (!pixbuf) {
         pixbuf = melange_app_load_pixbuf_resource(win->app, "icons/light/messenger.svg",
-                                                      32, 32, FALSE);
+                32, 32, FALSE);
     }
 
     GtkWidget *switcher_button = melange_main_window_create_switcher_button(
@@ -510,14 +501,15 @@ melange_main_window_add_service_button_clicked(GtkButton *button, MelangeMainWin
 
 
 static GtkWidget *
-melange_main_window_create_service_add_button(MelangeMainWindow *win, const MelangeAccount *preset) {
+melange_main_window_create_service_add_button(MelangeMainWindow *win,
+        const MelangeAccount *preset) {
     GdkPixbuf *pixbuf = NULL;
     if (preset) {
         pixbuf = melange_app_request_icon(win->app, preset->id);
     }
     if (!pixbuf) {
         pixbuf = melange_app_load_pixbuf_resource(win->app, "icons/light/messenger.svg",
-                                                      32, 32, FALSE);
+                32, 32, FALSE);
     }
 
     GtkWidget *image = gtk_image_new_from_pixbuf(pixbuf);
@@ -540,7 +532,7 @@ melange_main_window_create_service_add_button(MelangeMainWindow *win, const Mela
     if (preset) {
         g_object_set_data(G_OBJECT(button), "preset", (gpointer) preset);
         g_signal_connect(button, "clicked",
-                         G_CALLBACK(melange_main_window_add_service_button_clicked), win);
+                G_CALLBACK(melange_main_window_add_service_button_clicked), win);
     }
 
     return button;
@@ -549,11 +541,11 @@ melange_main_window_create_service_add_button(MelangeMainWindow *win, const Mela
 
 static void
 melange_main_window_icon_available(MelangeApp *app, const char *preset, GdkPixbuf *pixbuf,
-                                   MelangeMainWindow *win) {
+        MelangeMainWindow *win) {
     (void) app;
 
     for (GList *list = gtk_container_get_children(GTK_CONTAINER(win->service_grid)); list;
-            list = list->next){
+         list = list->next) {
         GtkContainer *button = GTK_CONTAINER(list->data);
         const char *button_preset = g_object_get_data(G_OBJECT(button), "preset");
         if (button_preset && g_str_equal(button_preset, preset)) {
@@ -564,7 +556,7 @@ melange_main_window_icon_available(MelangeApp *app, const char *preset, GdkPixbu
     }
 
     for (GList *list = gtk_container_get_children(GTK_CONTAINER(win->switcher_box)); list;
-         list = list->next){
+         list = list->next) {
         GtkButton *button = GTK_BUTTON(list->data);
         MelangeAccount *account = g_object_get_data(G_OBJECT(button), "account");
         if (account && account->preset && g_str_equal(account->preset->id, preset)) {
@@ -612,7 +604,7 @@ melange_main_window_constructed(GObject *obj) {
             button = melange_main_window_create_service_add_button(win, NULL);
             g_object_set_data(G_OBJECT(button), "switch-to", win->account_details_view);
             g_signal_connect(button, "clicked",
-                             G_CALLBACK(melange_main_window_switcher_button_clicked), win);
+                    G_CALLBACK(melange_main_window_switcher_button_clicked), win);
         }
         gtk_grid_attach(GTK_GRID(win->service_grid), button, (gint) i % 3, (gint) i / 3, 1, 1);
     }
@@ -655,7 +647,7 @@ melange_main_window_constructed(GObject *obj) {
     g_signal_connect(win->app, "notify::client-side-decorations",
             G_CALLBACK(melange_main_window_app_notify_client_side_decorations), win);
 
-    const char* csd_option;
+    const char *csd_option;
     g_object_get(win->app, "client-side-decorations", &csd_option, NULL);
 
     gboolean enable_csd = FALSE;
@@ -679,25 +671,28 @@ melange_main_window_constructed(GObject *obj) {
         GtkWidget *switcher = GTK_WIDGET(gtk_tool_button_new(image, "Preferences"));
         g_object_set_data(G_OBJECT(switcher), "switch-to", win->settings_view);
         g_signal_connect(switcher, "clicked",
-                         G_CALLBACK(melange_main_window_switcher_button_clicked), win);
+                G_CALLBACK(melange_main_window_switcher_button_clicked), win);
         gtk_header_bar_pack_end(GTK_HEADER_BAR(header_bar), switcher);
     } else {
         gtk_container_add(GTK_CONTAINER(win->menu_box),
-                  melange_main_window_create_utility_switcher_button(win,
-                          "settings", win->settings_view));
+                melange_main_window_create_utility_switcher_button(win,
+                        "settings", win->settings_view));
     }
 
-    melange_app_iterate_accounts(
-            win->app, (MelangeAccountConstFunc) melange_main_window_add_account_view, win);
+    melange_app_iterate_accounts(win->app,
+            (MelangeAccountConstFunc) melange_main_window_add_account_view, win);
 
     gtk_box_pack_end(GTK_BOX(win->switcher_box),
-                     melange_main_window_create_utility_switcher_button(win, "add", win->add_view),
-                     FALSE, FALSE, 0);
+            melange_main_window_create_utility_switcher_button(win, "add", win->add_view),
+            FALSE, FALSE, 0);
 
-    g_signal_connect(win, "notify::is-active", G_CALLBACK(melange_main_window_notify_is_active), win);
-    g_signal_connect(win, "button-press-event", G_CALLBACK(melange_main_window_button_press_event), win);
+    g_signal_connect(win, "notify::is-active", G_CALLBACK(melange_main_window_notify_is_active),
+            win);
+    g_signal_connect(win, "button-press-event", G_CALLBACK(melange_main_window_button_press_event),
+            win);
     g_signal_connect(win, "key-press-event", G_CALLBACK(melange_main_window_key_press_event), win);
-    g_signal_connect(win->app, "icon-available", G_CALLBACK(melange_main_window_icon_available), win);
+    g_signal_connect(win->app, "icon-available", G_CALLBACK(melange_main_window_icon_available),
+            win);
 
     gtk_application_window_set_show_menubar(GTK_APPLICATION_WINDOW(win), FALSE);
 }

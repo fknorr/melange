@@ -12,8 +12,7 @@ main(int argc, char **argv) {
     if (g_path_is_absolute(argv[0])) {
         executable_file = g_strdup(argv[0]);
     } else {
-        executable_file = g_build_path(G_DIR_SEPARATOR_S, g_get_current_dir(),
-                                               argv[0], NULL);
+        executable_file = g_build_path(G_DIR_SEPARATOR_S, g_get_current_dir(), argv[0], NULL);
     }
 
     GApplication *app = melange_app_new(executable_file);

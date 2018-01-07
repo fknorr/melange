@@ -28,13 +28,14 @@ typedef struct MelangeConfig {
 } MelangeConfig;
 
 typedef void (*MelangeAccountFunc)(MelangeAccount *account, gpointer user_data);
+
 typedef void (*MelangeAccountConstFunc)(const MelangeAccount *account, gpointer user_data);
 
 
 MelangeAccount *melange_account_new_from_preset(char *id, const MelangeAccount *preset);
 
 MelangeAccount *melange_account_new(char *id, char *service_name, char *service_url,
-                                    char *icon_url, char *user_agent);
+        char *icon_url, char *user_agent);
 
 void melange_account_free(MelangeAccount *account);
 
@@ -58,7 +59,7 @@ gboolean melange_config_add_account(MelangeConfig *config, MelangeAccount *accou
 MelangeAccount *melange_config_lookup_account(MelangeConfig *config, const char *id);
 
 void melange_config_for_each_account(MelangeConfig *config, MelangeAccountFunc func,
-                                     gpointer user_data);
+        gpointer user_data);
 
 void melange_config_write_to_file(MelangeConfig *config, const char *file_name);
 

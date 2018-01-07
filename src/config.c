@@ -6,14 +6,15 @@
 
 extern FILE *melange_config_parser_in;
 extern MelangeConfig *melange_config_parser_result;
+
 int melange_config_parser_parse(void);
 
 
 MelangeAccount *
 melange_account_new_from_preset(char *id, const MelangeAccount *preset) {
     MelangeAccount account = {
-        .id = id,
-        .preset = preset,
+            .id = id,
+            .preset = preset,
     };
     return g_memdup(&account, sizeof account);
 }
@@ -21,14 +22,13 @@ melange_account_new_from_preset(char *id, const MelangeAccount *preset) {
 
 MelangeAccount *
 melange_account_new(char *id, char *service_name, char *service_url, char *icon_url,
-                    char *user_agent)
-{
+        char *user_agent) {
     MelangeAccount account = {
-        .id = id,
-        .service_name = service_name,
-        .service_url = service_url,
-        .icon_url = icon_url,
-        .user_agent = user_agent,
+            .id = id,
+            .service_name = service_name,
+            .service_url = service_url,
+            .icon_url = icon_url,
+            .user_agent = user_agent,
     };
     return g_memdup(&account, sizeof account);
 }
@@ -78,10 +78,10 @@ melange_clear_account_pointer(MelangeAccount **account) {
 MelangeConfig *
 melange_config_new(void) {
     MelangeConfig template = {
-        .dark_theme = FALSE,
-        .client_side_decorations = MELANGE_CSD_AUTO,
-        .auto_hide_sidebar = FALSE,
-        .accounts = g_array_new(FALSE, FALSE, sizeof(MelangeAccount *)),
+            .dark_theme = FALSE,
+            .client_side_decorations = MELANGE_CSD_AUTO,
+            .auto_hide_sidebar = FALSE,
+            .accounts = g_array_new(FALSE, FALSE, sizeof(MelangeAccount *)),
     };
     g_array_set_clear_func(template.accounts, (GDestroyNotify) melange_clear_account_pointer);
     return g_memdup(&template, sizeof template);
@@ -143,8 +143,8 @@ melange_config_lookup_account(MelangeConfig *config, const char *id) {
 
 
 void
-melange_config_for_each_account(MelangeConfig *config, MelangeAccountFunc func, gpointer user_data)
-{
+melange_config_for_each_account(MelangeConfig *config, MelangeAccountFunc func,
+        gpointer user_data) {
     for (size_t i = 0; i < config->accounts->len; ++i) {
         func(g_array_index(config->accounts, MelangeAccount *, i), user_data);
     }
@@ -201,16 +201,16 @@ melange_config_write_to_file(MelangeConfig *config, const char *file_name) {
 
     fprintf(file,
             "settings {\n"
-            "    dark-theme               \"%s\"\n"
-            "    client-side-decorations  \"%s\"\n"
-            "    auto-hide-sidebar        \"%s\"\n"
-            "}\n",
+                    "    dark-theme               \"%s\"\n"
+                    "    client-side-decorations  \"%s\"\n"
+                    "    auto-hide-sidebar        \"%s\"\n"
+                    "}\n",
             bool_string[config->dark_theme],
             csd_string[config->client_side_decorations],
             bool_string[config->auto_hide_sidebar]
     );
 
     melange_config_for_each_account(config, (MelangeAccountFunc) melange_config_write_account,
-                                    file);
+            file);
     fclose(file);
 }
