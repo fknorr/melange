@@ -36,12 +36,14 @@ melange_account_new(char *id, char *service_name, char *service_url, char *icon_
 
 void
 melange_account_free(MelangeAccount *account) {
-    g_free(account->id);
-    g_free(account->service_name);
-    g_free(account->service_url);
-    g_free(account->icon_url);
-    g_free(account->user_agent);
-    g_free(account);
+    if (account) {
+        g_free(account->id);
+        g_free(account->service_name);
+        g_free(account->service_url);
+        g_free(account->icon_url);
+        g_free(account->user_agent);
+        g_free(account);
+    }
 }
 
 
@@ -98,6 +100,7 @@ melange_config_new_from_file(const char *file_name) {
         return NULL;
     }
 
+    // Use bison parser
     melange_config_parser_in = file;
     melange_config_parser_result = NULL;
     int status = melange_config_parser_parse();

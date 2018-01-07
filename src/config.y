@@ -87,6 +87,7 @@ read_csd(const char *str, MelangeCsdMode *out) {
 }
 
 
+// Copy pointer, set source to NULL to avoid freeing later
 static void
 move_ptr(void *dest, void *src) {
     g_free(*(void**) dest);

@@ -11,6 +11,7 @@
 struct MelangeApp {
     GtkApplication parent_instance;
 
+    // Path containing the files in res/, either that or install path (/usr/local/share/...)
     const char *resource_base_path;
 
     GtkStatusIcon *status_icon;
@@ -18,19 +19,26 @@ struct MelangeApp {
     GtkWidget *main_window;
     GtkWidget *about_dialog;
 
+    // Array of GdkPixbuf*, [0] is the melange icon, [1]-[10] is the red 1-10 notifications icon
     GdkPixbuf **notify_icons;
     int unread_messages;
 
+    // Ephemeral web context for fetching icons
     WebKitWebContext *web_context;
 
     MelangeConfig *config;
     char *config_file_name;
 
+    // Usually ~/.cache/melange/icons
     char *icon_cache_dir;
+
+    // Maps account->preset->id to GdkPixbuf* messenger icons
     GHashTable *icon_table;
 };
 
+
 typedef GtkApplicationClass MelangeAppClass;
+
 
 enum {
     MELANGE_APP_PROP_DARK_THEME = 1,
@@ -41,6 +49,8 @@ enum {
     MELANGE_APP_N_PROPS
 };
 
+
+// Closure for icon download request via webkit
 typedef struct MelangeAppIconDownloadContext {
     MelangeApp *app;
     const MelangeAccount *preset;
@@ -64,6 +74,8 @@ melange_app_get_property(GObject *object, guint property_id, GValue *value, GPar
             break;
 
         case MELANGE_APP_PROP_CLIENT_SIDE_DECORATIONS:
+            // On-the-fly string translation since I can't figure out how to register an enum
+            // as a GValue (GVariant?)  type
             switch (app->config->client_side_decorations) {
                 case MELANGE_CSD_OFF:
                     g_value_set_string(value, "off");
@@ -103,6 +115,8 @@ melange_app_set_property(GObject *object, guint property_id, const GValue *value
             break;
 
         case MELANGE_APP_PROP_CLIENT_SIDE_DECORATIONS: {
+            // On-the-fly string translation since I can't figure out how to register an enum
+            // as a GValue (GVariant?)  type
             const char *str_value = g_value_get_string(value);
             if (g_str_equal(str_value, "off")) {
                 app->config->client_side_decorations = MELANGE_CSD_OFF;
@@ -137,9 +151,12 @@ melange_app_set_property(GObject *object, guint property_id, const GValue *value
         case MELANGE_APP_PROP_EXECUTABLE_FILE: {
             const char *executable = g_value_get_string(value);
             if (strncmp(executable, MELANGE_INSTALL_PREFIX, strlen(MELANGE_INSTALL_PREFIX)) == 0) {
+                // I'm an installed copy of melange
                 app->resource_base_path = g_build_path(G_DIR_SEPARATOR_S, MELANGE_INSTALL_PREFIX,
                         "share/melange", NULL);
             } else {
+                // I'm probably being run from source.  Walk up the directory tree, looking for the
+                // first parent with a res/ subdirectory
                 char *path = g_malloc(strlen(executable) + 4);
                 strcpy(path, executable);
                 while (TRUE) {
@@ -243,6 +260,7 @@ melange_app_icon_download_finished(WebKitDownload *download,
 
     if (context->failed) goto cleanup;
 
+    // Save as .ico file (similar to favicon.ico), the actual extension does not matter
     char *file_name = g_strdup_printf("%s/%s.ico", context->app->icon_cache_dir,
             context->preset->id);
 
@@ -270,6 +288,7 @@ melange_app_start_updating_icons(MelangeApp *app) {
     for (size_t i = 0; i < melange_n_account_presets; ++i) {
         const MelangeAccount *preset = &melange_account_presets[i];
 
+        // Lookup from ~/.cache/melange/icons first
         char *file_name = g_strdup_printf("%s/%s.ico", app->icon_cache_dir, preset->id);
         GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(file_name, 32, 32, NULL);
         g_free(file_name);
@@ -279,6 +298,7 @@ melange_app_start_updating_icons(MelangeApp *app) {
             continue;
         }
 
+        // If not available, download
         WebKitDownload *download = webkit_web_context_download_uri(app->web_context,
                 preset->icon_url);
 
@@ -421,6 +441,7 @@ melange_app_startup(GApplication *g_app) {
 
     g_object_unref(builder);
 
+    // Actions for app menu (the top-left icon in the header bar)
     GSimpleAction *about_action = g_simple_action_new("about", NULL);
     g_signal_connect_swapped(about_action, "activate",
             G_CALLBACK(melange_app_about_action_activate), app);
@@ -435,6 +456,7 @@ melange_app_startup(GApplication *g_app) {
     g_menu_append(app_menu, "Quit", "app.quit");
     gtk_application_set_app_menu(GTK_APPLICATION(app), G_MENU_MODEL(app_menu));
 
+    // Load tray icon imagesj
     app->notify_icons = g_malloc(11 * sizeof *app->notify_icons);
     for (size_t i = 0; i < 11; ++i) {
         char *file_name = "icons/melange.svg";
@@ -465,6 +487,7 @@ melange_app_startup(GApplication *g_app) {
     app->web_context = webkit_web_context_new_ephemeral();
     melange_app_start_updating_icons(app);
 
+    // MainWindow icon and title are always set from outside
     app->main_window = melange_main_window_new(app);
     gtk_window_set_icon(GTK_WINDOW(app->main_window), app->notify_icons[icon_index]);
     gtk_window_set_title(GTK_WINDOW(app->main_window), "Melange");

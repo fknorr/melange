@@ -10,24 +10,41 @@ struct MelangeMainWindow {
 
     MelangeApp *app;
 
-    GtkWidget *last_web_view;
+    // The main GtkStack switching between web, add, account editing and settings view
+    GtkWidget *view_stack;
     GtkWidget *add_view;
     GtkWidget *settings_view;
     GtkWidget *account_details_view;
+
+    // Which view was active before the current one? (For navigation with back/escape)
+    GtkWidget *last_web_view;
+
     GtkWidget *sidebar_revealer;
+
+    // Vertical dots, visible when auto-hide-sidebar is on
     GtkWidget *sidebar_handle;
-    GtkWidget *view_stack;
+
+    // Container of the sidebar top switcher buttons (web views & add view)
     GtkWidget *switcher_box;
+
+    // Outer container of switcher_box and the settings button (csd-off mode)
     GtkWidget *menu_box;
+
+    // Button grid in add view
     GtkWidget *service_grid;
 
+    // Matches number of notifications in titles like "(1) WhatsApp"
     GRegex *new_message_regex;
+
     guint sidebar_timeout;
     guint notification_timeout;
+
     const char *initial_csd_setting;
 };
 
+
 typedef GtkApplicationWindowClass MelangeMainWindowClass;
+
 
 enum {
     MELANGE_MAIN_WINDOW_PROP_APP = 1,
@@ -63,10 +80,14 @@ melange_main_window_web_view_context_menu(WebKitWebView *web_view, WebKitContext
     (void) hit_test_result;
     (void) user_data;
 
+    // Suppress context menu
     return TRUE;
 }
 
 
+// If difference == 0, resets the notification count for web_view to 0.
+// If difference > 0, adds `difference` notifications to web_view.
+// Configures the red notification labels and updates the global notification count.
 static void
 melange_main_window_update_unread_messages(MelangeMainWindow *win, WebKitWebView *web_view,
         int difference) {
@@ -77,7 +98,7 @@ melange_main_window_update_unread_messages(MelangeMainWindow *win, WebKitWebView
     if (difference == 0) {
         global = local = 0;
     } else {
-        local = MAX(0, local) + difference;
+        local = MAX(0, local) + difference; // local starts out at -1
         global += difference;
     }
 
@@ -100,12 +121,15 @@ melange_main_window_web_view_notify_title(WebKitWebView *web_view, GParamSpec *p
     (void) pspec;
     (void) win;
 
+    // Only use the title notification count if we have not seen any data yet. Later, incoming
+    // notification pop-ups are counted towards the notification count instead
     if (g_object_get_data(G_OBJECT(web_view), "unread-messages") != (gpointer) -1) {
         return;
     }
 
     int unread = 0;
 
+    // Parse title like "(1) WhatsApp"
     GMatchInfo *match;
     g_regex_match(win->new_message_regex, webkit_web_view_get_title(web_view), 0, &match);
     if (g_match_info_matches(match)) {
@@ -120,6 +144,7 @@ melange_main_window_web_view_load_changed(WebKitWebView *web_view, WebKitLoadEve
         MelangeMainWindow *win) {
     MelangeAccount *account = g_object_get_data(G_OBJECT(web_view), "account");
     if (account->preset && load_event == WEBKIT_LOAD_FINISHED) {
+        // Inject JS code for modifying style etc.
         char *file_name = g_strdup_printf("js/%s.js", account->preset->id);
         char *override_js = melange_app_load_text_resource(win->app, file_name, TRUE);
         if (override_js) {
@@ -137,6 +162,7 @@ melange_main_window_web_view_show_notification(WebKitWebView *web_view,
     MelangeAccount *account = g_object_get_data(G_OBJECT(web_view), "account");
     g_assert(account);
 
+    // If view in background, count towards notification label
     if (!gtk_window_is_active(GTK_WINDOW(win))
             || gtk_stack_get_visible_child(GTK_STACK(win->view_stack)) != GTK_WIDGET(web_view)) {
         melange_main_window_update_unread_messages(win, web_view, 1);
@@ -277,6 +303,7 @@ melange_main_window_notify_is_active(GObject *obj, GParamSpec *pspec, MelangeMai
 
     melange_main_window_cancel_notification_timeout(win);
 
+    // If the user has looked at a view for 3 seconds, clear the notification count
     if (gtk_window_is_active(GTK_WINDOW(win))) {
         melange_main_window_clear_active_view_notification_after_timeout(win);
     }
@@ -321,6 +348,7 @@ melange_main_window_switcher_button_clicked(GtkButton *button, MelangeMainWindow
     GtkWidget *switch_to = GTK_WIDGET(g_object_get_data(G_OBJECT(button), "switch-to"));
     melange_main_window_switch_to_view(switch_to);
 
+    // If the user has looked at a view for 3 seconds, clear the notification count
     if (WEBKIT_IS_WEB_VIEW(switch_to)) {
         melange_main_window_clear_active_view_notification_after_timeout(win);
     }
@@ -353,6 +381,8 @@ melange_main_window_create_switcher_button(MelangeMainWindow *win, GdkPixbuf *pi
         gtk_widget_set_name(label, "notify-label");
         gtk_widget_set_no_show_all(label, TRUE);
         gtk_overlay_add_overlay(GTK_OVERLAY(overlay), label);
+
+        // Do not handle mouse events in the label, pass through to button
         gtk_overlay_set_overlay_pass_through(GTK_OVERLAY(overlay), label, TRUE);
 
         gtk_container_add(GTK_CONTAINER(switcher), overlay);
@@ -452,6 +482,9 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
     char *base_path = g_strdup_printf("%s/melange/accounts/%s", g_get_user_cache_dir(),
             account->id);
 
+    // Each web view has its own data manager and web context to allow multiple accounts of the
+    // same messenger
+
     WebKitWebsiteDataManager *data_manager = webkit_website_data_manager_new(
             "base-data-directory", base_path,
             "base-cache-directory", base_path,
@@ -520,6 +553,8 @@ melange_main_window_add_service_button_clicked(GtkButton *button, MelangeMainWin
     const MelangeAccount *preset = g_object_get_data(G_OBJECT(button), "preset");
     g_return_if_fail(preset);
 
+    // Count ids "whatsapp1", "whatsapp2", ...
+
     int serial = 1;
     char *id = g_strdup_printf("%s%d", preset->id, serial);
 
@@ -533,6 +568,7 @@ melange_main_window_add_service_button_clicked(GtkButton *button, MelangeMainWin
 }
 
 
+// Buttons for the add view grid
 static GtkWidget *
 melange_main_window_create_service_add_button(MelangeMainWindow *win,
         const MelangeAccount *preset) {
@@ -572,11 +608,13 @@ melange_main_window_create_service_add_button(MelangeMainWindow *win,
 }
 
 
+// Callback when the app has finished loading a messenger icon from the web.
 static void
 melange_main_window_icon_available(MelangeApp *app, const char *preset, GdkPixbuf *pixbuf,
         MelangeMainWindow *win) {
     (void) app;
 
+    // Update "add service" view grid
     for (GList *list = gtk_container_get_children(GTK_CONTAINER(win->service_grid)); list;
          list = list->next) {
         GtkContainer *button = GTK_CONTAINER(list->data);
@@ -588,6 +626,7 @@ melange_main_window_icon_available(MelangeApp *app, const char *preset, GdkPixbu
         }
     }
 
+    // Update sidebar
     for (GList *list = gtk_container_get_children(GTK_CONTAINER(win->switcher_box)); list;
          list = list->next) {
         GtkButton *button = GTK_BUTTON(list->data);
@@ -606,6 +645,7 @@ melange_main_window_constructed(GObject *obj) {
     MelangeMainWindow *win = MELANGE_MAIN_WINDOW(obj);
     g_return_if_fail(win->app);
 
+    // Glade file contains everything but the actual main window, since it's a custom class
     GtkBuilder *builder = melange_app_load_ui_resource(win->app, "ui/mainwindow.glade", FALSE);
     gtk_builder_connect_signals(builder, win);
 
@@ -618,8 +658,7 @@ melange_main_window_constructed(GObject *obj) {
     win->menu_box = GTK_WIDGET(gtk_builder_get_object(builder, "menu-box"));
     win->switcher_box = GTK_WIDGET(gtk_builder_get_object(builder, "switcher-box"));
 
-    GtkImage *sidebar_handle = GTK_IMAGE(gtk_builder_get_object(builder, "sidebar-handle"));
-    gtk_image_set_from_pixbuf(sidebar_handle,
+    gtk_image_set_from_pixbuf(GTK_IMAGE(win->sidebar_handle),
             melange_app_load_pixbuf_resource(win->app, "icons/light/vdots.svg", 4, -1, FALSE));
 
     win->add_view = GTK_WIDGET(gtk_builder_get_object(builder, "add-view"));
@@ -639,6 +678,7 @@ melange_main_window_constructed(GObject *obj) {
             g_signal_connect(button, "clicked",
                     G_CALLBACK(melange_main_window_switcher_button_clicked), win);
         }
+        // Add icons left-to-right, then top-to-bottom
         gtk_grid_attach(GTK_GRID(win->service_grid), button, (gint) i % 3, (gint) i / 3, 1, 1);
     }
 
@@ -654,6 +694,7 @@ melange_main_window_constructed(GObject *obj) {
 
     g_object_unref(builder);
 
+    // Stylesheet
     GtkCssProvider *css_provider = gtk_css_provider_new();
     char *css_path = melange_app_get_resource_path(win->app, "ui/mainwindow.css");
     if (!gtk_css_provider_load_from_path(css_provider, css_path, NULL)) {
@@ -663,6 +704,7 @@ melange_main_window_constructed(GObject *obj) {
             GTK_STYLE_PROVIDER(css_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     g_free(css_path);
 
+    // Settings controls
     gboolean dark_theme;
     g_object_get(win->app, "dark-theme", &dark_theme, NULL);
     gtk_switch_set_state(dark_theme_setting, dark_theme);
@@ -687,6 +729,7 @@ melange_main_window_constructed(GObject *obj) {
     if (g_str_equal(csd_option, "on")) {
         enable_csd = TRUE;
     } else if (g_str_equal(csd_option, "auto")) {
+        // prefers-app-menu is true for GNOME, false for Xfce and i3, as intended. Maybe replace.
         enable_csd = gtk_application_prefers_app_menu(GTK_APPLICATION(win->app));
     }
 
@@ -701,12 +744,14 @@ melange_main_window_constructed(GObject *obj) {
                 header_bar_dark ? "icons/dark/settings.svg" : "icons/light/settings.svg",
                 16, 16, FALSE));
 
+        // Move "settings" button to header bar
         GtkWidget *switcher = GTK_WIDGET(gtk_tool_button_new(image, "Preferences"));
         g_object_set_data(G_OBJECT(switcher), "switch-to", win->settings_view);
         g_signal_connect(switcher, "clicked",
                 G_CALLBACK(melange_main_window_switcher_button_clicked), win);
         gtk_header_bar_pack_end(GTK_HEADER_BAR(header_bar), switcher);
     } else {
+        // Settings button in sidebar
         gtk_container_add(GTK_CONTAINER(win->menu_box),
                 melange_main_window_create_utility_switcher_button(win,
                         "settings", win->settings_view));
