@@ -176,6 +176,30 @@ melange_main_window_web_view_show_notification(WebKitWebView *web_view,
     return TRUE;
 }
 
+gboolean
+melange_main_window_web_view_decide_policy(WebKitWebView *web_view, WebKitPolicyDecision *decision,
+        WebKitPolicyDecisionType decision_type, MelangeMainWindow *win) {
+    (void) web_view;
+    (void) win;
+
+    if (decision_type == WEBKIT_POLICY_DECISION_TYPE_NEW_WINDOW_ACTION) {
+        WebKitNavigationAction *action = webkit_navigation_policy_decision_get_navigation_action(
+                        WEBKIT_NAVIGATION_POLICY_DECISION(decision));
+        WebKitURIRequest *request = webkit_navigation_action_get_request(action);
+        if (g_str_equal(webkit_uri_request_get_http_method(request), "GET")) {
+            GError *error;
+            if (!g_app_info_launch_default_for_uri(webkit_uri_request_get_uri(request), NULL,
+                    &error)) {
+                g_warning("Unable to open link in external application: %s", error->message);
+                g_error_free(error);
+            }
+        }
+        webkit_policy_decision_ignore(decision);
+        return TRUE;
+    }
+    return FALSE;
+}
+
 
 static void
 melange_main_window_set_sidebar_visible(MelangeMainWindow *win, gboolean visible) {
@@ -508,6 +532,8 @@ melange_main_window_add_account_view(MelangeAccount *account, MelangeMainWindow 
             G_CALLBACK(melange_main_window_web_view_load_changed), win);
     g_signal_connect(web_view, "show-notification",
             G_CALLBACK(melange_main_window_web_view_show_notification), win);
+    g_signal_connect(web_view, "decide-policy",
+            G_CALLBACK(melange_main_window_web_view_decide_policy), win);
 
     WebKitSettings *sett = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(web_view));
     webkit_settings_set_user_agent(sett, melange_account_get_user_agent(account));
