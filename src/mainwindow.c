@@ -312,13 +312,14 @@ melange_main_window_create_switcher_button(MelangeMainWindow *win,GdkPixbuf *pix
 
     GtkWidget *image = gtk_image_new_from_pixbuf(pixbuf);
     gtk_image_set_pixel_size(GTK_IMAGE(image), padded_size);
-    gtk_widget_set_margin_top(image, padding);
-    gtk_widget_set_margin_bottom(image, padding);
+    gtk_widget_set_margin_top(image, padding ? padding : 3);
+    gtk_widget_set_margin_bottom(image, padding ? padding : 3);
     gtk_widget_set_margin_start(image, padding);
     gtk_widget_set_margin_end(image, padding);
 
     GtkWidget *switcher = gtk_button_new();
     gtk_button_set_relief(GTK_BUTTON(switcher), GTK_RELIEF_NONE);
+    gtk_widget_set_can_focus(switcher, FALSE);
 
     if (notifications) {
         GtkWidget *overlay = gtk_overlay_new();
