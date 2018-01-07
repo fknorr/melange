@@ -176,12 +176,16 @@ melange_main_window_web_view_show_notification(WebKitWebView *web_view,
     return TRUE;
 }
 
+
+// "decide-policy" is emitted when a new navigation request is received, e.g. from clicking a link.
 gboolean
 melange_main_window_web_view_decide_policy(WebKitWebView *web_view, WebKitPolicyDecision *decision,
         WebKitPolicyDecisionType decision_type, MelangeMainWindow *win) {
     (void) web_view;
     (void) win;
 
+    // Web apps usually try to open external urls in a new window, so we can redirect that to
+    // the os to open a browser window
     if (decision_type == WEBKIT_POLICY_DECISION_TYPE_NEW_WINDOW_ACTION) {
         WebKitNavigationAction *action = webkit_navigation_policy_decision_get_navigation_action(
                         WEBKIT_NAVIGATION_POLICY_DECISION(decision));
