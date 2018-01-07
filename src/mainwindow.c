@@ -23,6 +23,7 @@ struct MelangeMainWindow {
 
     GRegex *new_message_regex;
     guint sidebar_timeout;
+    guint notification_timeout;
     const char *initial_csd_setting;
 };
 
@@ -239,16 +240,45 @@ melange_main_window_client_side_decorations_setting_changed(GtkComboBox *combo_b
 }
 
 
+static gboolean
+melange_main_window_clear_active_view_notification(MelangeMainWindow *win) {
+    GtkWidget *active_view = gtk_stack_get_visible_child(GTK_STACK(win->view_stack));
+    melange_main_window_update_unread_messages(win, WEBKIT_WEB_VIEW(active_view), 0);
+    win->notification_timeout = 0;
+    return false;
+}
+
+
+static void
+melange_main_window_cancel_notification_timeout(MelangeMainWindow *win) {
+    if (win->notification_timeout) {
+        g_source_remove(win->notification_timeout);
+        win->notification_timeout = 0;
+    }
+}
+
+
+static void
+melange_main_window_clear_active_view_notification_after_timeout(MelangeMainWindow *win) {
+    if (!win->notification_timeout) {
+        GtkWidget *active_view = gtk_stack_get_visible_child(GTK_STACK(win->view_stack));
+        if (WEBKIT_IS_WEB_VIEW(active_view)) {
+            win->notification_timeout = g_timeout_add(3000,
+                    (GSourceFunc) melange_main_window_clear_active_view_notification, win);
+        }
+    }
+}
+
+
 static void
 melange_main_window_notify_is_active(GObject *obj, GParamSpec *pspec, MelangeMainWindow *win) {
     (void) obj;
     (void) pspec;
 
+    melange_main_window_cancel_notification_timeout(win);
+
     if (gtk_window_is_active(GTK_WINDOW(win))) {
-        GtkWidget *active_view = gtk_stack_get_visible_child(GTK_STACK(win->view_stack));
-        if (WEBKIT_IS_WEB_VIEW(active_view)) {
-            melange_main_window_update_unread_messages(win, WEBKIT_WEB_VIEW(active_view), 0);
-        }
+        melange_main_window_clear_active_view_notification_after_timeout(win);
     }
 }
 
@@ -267,6 +297,7 @@ melange_main_window_realize(GtkWidget *widget) {
 static void
 melange_main_window_init(MelangeMainWindow *win) {
     win->sidebar_timeout = 0;
+    win->notification_timeout = 0;
     win->new_message_regex = g_regex_new("(^\\s*|.*\\()(\\d+)\\b", 0, 0, NULL);
 
     GdkGeometry hints = { .min_width = 800, .min_height = 600 };
@@ -285,11 +316,13 @@ static void
 melange_main_window_switcher_button_clicked(GtkButton *button, MelangeMainWindow *win) {
     (void) button;
 
+    melange_main_window_cancel_notification_timeout(win);
+
     GtkWidget *switch_to = GTK_WIDGET(g_object_get_data(G_OBJECT(button), "switch-to"));
     melange_main_window_switch_to_view(switch_to);
 
     if (WEBKIT_IS_WEB_VIEW(switch_to)) {
-        melange_main_window_update_unread_messages(win, WEBKIT_WEB_VIEW(switch_to), 0);
+        melange_main_window_clear_active_view_notification_after_timeout(win);
     }
 }
 
